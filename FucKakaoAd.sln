@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.329
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FucKakaoAd", "FucKakaoAd\FucKakaoAd.vcxproj", "{1582CAD0-E404-4F9D-9A07-1D8895E41135}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FucKakaoAdCore", "FucKakaoAdCore\FucKakaoAdCore.vcxproj", "{3F302F9A-B9EA-4568-B452-F07783D74FA2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1582CAD0-E404-4F9D-9A07-1D8895E41135}.Debug|x86.ActiveCfg = Debug|Win32
+		{1582CAD0-E404-4F9D-9A07-1D8895E41135}.Debug|x86.Build.0 = Debug|Win32
+		{1582CAD0-E404-4F9D-9A07-1D8895E41135}.Release|x86.ActiveCfg = Release|Win32
+		{1582CAD0-E404-4F9D-9A07-1D8895E41135}.Release|x86.Build.0 = Release|Win32
+		{3F302F9A-B9EA-4568-B452-F07783D74FA2}.Debug|x86.ActiveCfg = Debug|Win32
+		{3F302F9A-B9EA-4568-B452-F07783D74FA2}.Debug|x86.Build.0 = Debug|Win32
+		{3F302F9A-B9EA-4568-B452-F07783D74FA2}.Release|x86.ActiveCfg = Release|Win32
+		{3F302F9A-B9EA-4568-B452-F07783D74FA2}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {06E64515-B20E-4877-9192-6A3FABFECD33}
+	EndGlobalSection
+EndGlobal
