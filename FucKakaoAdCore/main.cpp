@@ -20,7 +20,7 @@ WNDPROC g_prevWpLock = NULL;
 
 bool setHeight(HWND hwnd)
 {
-    // °è»êµÈ ³ôÀÌ¶û ´Ù¸¦ °æ¿ì ´Ù½Ã ¼³Á¤
+    // ê³„ì‚°ëœ ë†’ì´ë‘ ë‹¤ë¥¼ ê²½ìš° ë‹¤ì‹œ ì„¤ì •
     RECT rectApp;
     RECT rectView;
     if (GetWindowRect(g_hwndApp, &rectApp) == TRUE &&
@@ -53,7 +53,7 @@ bool wndProcMainLock(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     if (uMsg == WM_SIZE)
     {
-        // Å©±âÁ¶Àı
+        // í¬ê¸°ì¡°ì ˆ
         if (wParam == SIZE_RESTORED)
             if (setHeight(hwnd))
                 return true;
@@ -62,11 +62,11 @@ bool wndProcMainLock(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
         DebugLog(L"hwnd = %p / wParam = %d", hwnd, wParam);
 
-        // Ã¢ÀÌ È°¼ºÈ­ µÉ ¶§ ±¤°í ´Ù½Ã ¼û±â±â
+        // ì°½ì´ í™œì„±í™” ë  ë•Œ ê´‘ê³  ë‹¤ì‹œ ìˆ¨ê¸°ê¸°
         if (wParam == TRUE)
             hideKakaoAd();
 
-        // Lock ÆäÀÌÁö°¡ ¼û°ÜÁú ¶§ = Main º¸ÀÌ±â = Main Proc »õ·Î ¼³Á¤
+        // Lock í˜ì´ì§€ê°€ ìˆ¨ê²¨ì§ˆ ë•Œ = Main ë³´ì´ê¸° = Main Proc ìƒˆë¡œ ì„¤ì •
         else if (wParam == FALSE && hwnd == g_hwndLock)
             hookMain();
     }
@@ -76,7 +76,7 @@ bool wndProcMainLock(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 LRESULT CALLBACK WndProcApp(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    // ÃÖ¼ÒÅ©±â
+    // ìµœì†Œí¬ê¸°
     if (uMsg == WM_GETMINMAXINFO)
     {
         LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
@@ -92,7 +92,7 @@ LRESULT CALLBACK WndProcAd(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
     case WM_PAINT:
     case WM_NCPAINT:
-        // µå·ÎÀ× ¾ÈÇÔ
+        // ë“œë¡œì‰ ì•ˆí•¨
         return DefWindowProcW(hwnd, uMsg, wParam, lParam);
     }
 
@@ -197,8 +197,8 @@ BOOL CALLBACK FindKakaoHwndProc(HWND hwnd, LPARAM lParam)
 
     if (std::wcscmp(className, L"EVA_ChildWindow") == 0)
     {
-        if (std::wcsncmp(windowName, L"OnlineMainView_", 15) == 0) g_hwndMain = hwnd;
-        else if (std::wcsncmp(windowName, L"LockModeView_", 13) == 0) g_hwndLock = hwnd;
+             if (std::wcsncmp(windowName, L"OnlineMainView_", 15) == 0) g_hwndMain = hwnd;
+        else if (std::wcsncmp(windowName, L"LockModeView_"  , 13) == 0) g_hwndLock = hwnd;
     }
     else if (std::wcscmp(className, L"EVA_Window") == 0 &&
         std::wcslen(windowName) == 0 &&

@@ -4,8 +4,18 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 15.0.28307.329
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FucKakaoAd", "FucKakaoAd\FucKakaoAd.vcxproj", "{1582CAD0-E404-4F9D-9A07-1D8895E41135}"
+	ProjectSection(ProjectDependencies) = postProject
+		{3F302F9A-B9EA-4568-B452-F07783D74FA2} = {3F302F9A-B9EA-4568-B452-F07783D74FA2}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FucKakaoAdCore", "FucKakaoAdCore\FucKakaoAdCore.vcxproj", "{3F302F9A-B9EA-4568-B452-F07783D74FA2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{1A7DAA6D-2252-40C9-9B7E-DEF63EA42F02}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		LICENSE = LICENSE
+		README.md = README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

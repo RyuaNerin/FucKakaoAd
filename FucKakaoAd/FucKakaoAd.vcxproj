@@ -79,6 +79,9 @@
   <ItemGroup>
     <ResourceCompile Include="FucKakaoAd.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Debug\FucKakaoAdCore.dll" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

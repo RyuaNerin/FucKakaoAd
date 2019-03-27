@@ -1,12 +1,15 @@
-#include <stdio.h>
 #include <windows.h>
+#include <psapi.h>
 #include <tlhelp32.h>
 
 #include <string>
+#include <experimental/filesystem>
+using namespace std::experimental;
 
 #include "defer.h"
 #include "resource.h"
 
+#define KAKAO_EXE   L"KakaoTalk.exe"
 #define MUTEX_NAME  L"FucKakaoAd"
 #define DLL_NAME    L"FucKakaoAdCore.dll"
 
@@ -14,7 +17,7 @@ HINSTANCE g_hInstance;
 
 bool RunAsDesktopUser(LPCWSTR lpApplicationName, LPWSTR lpCommandLine, LPSECURITY_ATTRIBUTES lpProcessAttributes, LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles, DWORD dwCreationFlags, LPVOID lpEnvironment, PCWSTR lpCurrentDirectory, LPSTARTUPINFOW lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation);
 void ShowMessageBox(UINT strId);
-bool isInjected(DWORD pid, LPCTSTR moduleName);
+bool isInjected(DWORD pid);
 void injectDll(HANDLE hProcess);
 
 #define ShowMessageBoxAndReturn(id) { ShowMessageBox(id); return; }
@@ -22,75 +25,103 @@ void injectDll(HANDLE hProcess);
 void ShowMessageBox(UINT strId)
 {
     WCHAR msgTitle[MAX_PATH];
-    WCHAR msgText[MAX_PATH];
+    WCHAR msgText [MAX_PATH];
     LoadStringW(g_hInstance, IDS_STRING_TITLE, msgTitle, MAX_PATH);
-    LoadStringW(g_hInstance, strId, msgText, MAX_PATH);
+    LoadStringW(g_hInstance, strId           , msgText , MAX_PATH);
 
     MessageBoxW(NULL, msgText, msgTitle, 0);
 }
 
+BOOL CALLBACK FindKaKaoWindowProc(HWND hwnd, LPARAM lParam)
+{
+    WCHAR className[MAX_PATH];
+
+    GetClassNameW(hwnd, className, MAX_PATH);
+    if (std::wcscmp(className, L"EVA_Window_Dblclk") == 0 ||
+        std::wcscmp(className, L"EVA_Window") == 0)
+    {
+        DWORD pid;
+        if (GetWindowThreadProcessId(hwnd, &pid) != 0)
+        {
+            HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
+            if (hProcess != NULL)
+            {
+                defer(CloseHandle(hProcess));
+
+                HMODULE hModule;
+                DWORD needed;
+                if (K32EnumProcessModules(hProcess, &hModule, sizeof(hModule), &needed) == TRUE)
+                {
+                    WCHAR szProcessName[MAX_PATH];
+                    if (K32GetModuleBaseNameW(hProcess, hModule, szProcessName, MAX_PATH) != 0)
+                    {
+                        if (lstrcmpiW(szProcessName, KAKAO_EXE) == 0)
+                        {
+                            *(HWND*)lParam = hwnd;
+                            return FALSE;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return TRUE;
+}
+HWND FindKakaoWindow()
+{
+    HWND hwnd = NULL;
+    EnumWindows(FindKaKaoWindowProc, (LPARAM)&hwnd);
+    return hwnd;
+}
+
 void wWinMainBody()
 {
-    WCHAR kakaoTitle[MAX_PATH];
-    LoadStringW(g_hInstance, IDS_STRING_CAPTIONS, kakaoTitle, MAX_PATH);
-
-    HWND hwndApp = FindWindowW(L"EVA_Window_Dblclk", kakaoTitle);
+    HWND hwndApp = FindKakaoWindow();
     if (hwndApp == NULL)
     {
-        hwndApp = FindWindowW(L"EVA_Window", kakaoTitle);
-        if (hwndApp == NULL)
+        // Ïπ¥Ïπ¥Ïò§ÌÜ°ÏùÑ Ï∞æÍ≥†
+        HKEY hkey;
+        if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\KakaoTalk", 0, KEY_READ, &hkey) != ERROR_SUCCESS)
+            ShowMessageBoxAndReturn(IDS_STRING_ERROR_NOT_FOUND);
+        defer(RegCloseKey(hkey));
+
+        WCHAR kakaoPathBuffer[MAX_PATH];
+        DWORD dwType;
+        DWORD dwBytes = MAX_PATH;
+        if (RegQueryValueExW(hkey, L"DisplayIcon", 0, &dwType, (LPBYTE)kakaoPathBuffer, &dwBytes) != ERROR_SUCCESS)
+            ShowMessageBoxAndReturn(IDS_STRING_ERROR_NOT_FOUND)
+
+        std::wstring kakaoPath = filesystem::path(kakaoPathBuffer).replace_filename(KAKAO_EXE).wstring();
+
+        STARTUPINFOW si = { 0 };
+        si.cb = sizeof(si);
+
+        PROCESS_INFORMATION pi = { 0, };
+
+        if (!RunAsDesktopUser(kakaoPath.c_str(), NULL, NULL, 0, FALSE, 0, NULL, NULL, &si, &pi) || pi.hProcess == NULL)
         {
-            WCHAR kakaoPath[MAX_PATH];
-
-            // ƒ´ƒ´ø¿≈Â¿ª √£∞Ì
-            HKEY hkey;
-            if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\KakaoTalk", 0, KEY_READ, &hkey) != ERROR_SUCCESS)
-                ShowMessageBoxAndReturn(IDS_STRING_ERROR_NOT_FOUND);
-            defer(RegCloseKey(hkey));
-
-            DWORD dwType;
-            DWORD dwBytes = MAX_PATH;
-            if (RegQueryValueExW(hkey, L"DisplayIcon", 0, &dwType, (LPBYTE)kakaoPath, &dwBytes) != ERROR_SUCCESS)
-                ShowMessageBoxAndReturn(IDS_STRING_ERROR_NOT_FOUND)
-
-                std::wstring kakaoPathStd(kakaoPath);
-            kakaoPathStd = kakaoPathStd.substr(0, kakaoPathStd.find_last_of(L'\\') + 1);
-            kakaoPathStd.append(L"KakaoTalk.exe");
-
-            STARTUPINFOW si = { 0 };
-            si.cb = sizeof(si);
-
-            PROCESS_INFORMATION pi = { 0, };
-
-            if (!RunAsDesktopUser(kakaoPath, NULL, NULL, 0, FALSE, 0, NULL, NULL, &si, &pi) || pi.hProcess == NULL)
-            {
-                if (!CreateProcessW(kakaoPath, NULL, NULL, 0, FALSE, 0, NULL, NULL, &si, &pi) || pi.hProcess == NULL)
-                    ShowMessageBoxAndReturn(IDS_STRING_FAIL)
-            }
-
-            // «¡∑ŒººΩ∫∞° ¡æ∑·µ«∞≈≥™ ∏ﬁ¿Œ ∆˚¿Ã
-            DWORD exitCode;
-            do
-            {
-                hwndApp = FindWindowW(L"EVA_Window_Dblclk", kakaoTitle);
-                if (hwndApp == NULL)
-                    hwndApp = FindWindowW(L"EVA_Window", kakaoTitle);
-
-                Sleep(250);
-            } while ((GetExitCodeProcess(pi.hProcess, &exitCode) == TRUE && exitCode == STILL_ACTIVE) && hwndApp == NULL);
+            if (!CreateProcessW(kakaoPath.c_str(), NULL, NULL, 0, FALSE, 0, NULL, NULL, &si, &pi) || pi.hProcess == NULL)
+                ShowMessageBoxAndReturn(IDS_STRING_FAIL)
         }
+
+        // ÌîÑÎ°úÏÑ∏Ïä§Í∞Ä Ï¢ÖÎ£åÎêòÍ±∞ÎÇò Î©îÏù∏ ÌèºÏù¥
+        DWORD exitCode;
+        do
+        {
+            hwndApp = FindKakaoWindow();
+            Sleep(250);
+        } while ((GetExitCodeProcess(pi.hProcess, &exitCode) == TRUE && exitCode == STILL_ACTIVE) && hwndApp == NULL);
     }
 
     if (hwndApp != NULL)
     {
-        // «¡∑ŒººΩ∫ ID æÚæÓø¿∞Ì
+        // ÌîÑÎ°úÏÑ∏Ïä§ ID ÏñªÏñ¥Ïò§Í≥†
         DWORD pid;
         if (GetWindowThreadProcessId(hwndApp, &pid) == 0 || pid == 0)
             ShowMessageBoxAndReturn(IDS_STRING_ERROR_PERMISION)
 
-        if (isInjected(pid, DLL_NAME))
-            ShowMessageBoxAndReturn(IDS_STRING_SUCCESS)
-        else
+        if (!isInjected(pid))
         {
             auto hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
             if (hProcess == NULL)
@@ -102,7 +133,7 @@ void wWinMainBody()
     }
 }
 
-bool isInjected(DWORD pid, LPCTSTR moduleName)
+bool isInjected(DWORD pid)
 {
     MODULEENTRY32W snapEntry = { 0 };
     snapEntry.dwSize = sizeof(MODULEENTRY32W);
@@ -116,7 +147,7 @@ bool isInjected(DWORD pid, LPCTSTR moduleName)
     {
         do
         {
-            if (lstrcmpW(snapEntry.szModule, moduleName) == 0)
+            if (lstrcmpiW(snapEntry.szModule, DLL_NAME) == 0)
             {
                 return true;
             }
@@ -198,19 +229,27 @@ bool RunAsDesktopUser(
 
 void injectDll(HANDLE hProcess)
 {
-    // EXE ¿ßƒ°∏¶ æÀæ∆≥ª±‚ ¿ß«— ªÁ¿¸ ¿€æ˜
-    HMODULE hModule = GetModuleHandleW(NULL);
-    if (hModule == NULL)
-        ShowMessageBoxAndReturn(IDS_STRING_ERROR_PERMISION)
+    WCHAR tempPathBuffer[MAX_PATH];
+    if (GetTempPathW(MAX_PATH, tempPathBuffer) == 0)
+        ShowMessageBoxAndReturn(IDS_STRING_FAIL)
+    std::wstring dllPath = filesystem::path(tempPathBuffer).append(DLL_NAME).wstring();
 
-    // EXE ¿ßƒ° ∫“∑Øø¿∞Ì
-    TCHAR path[MAX_PATH] = { 0, };
-    GetModuleFileNameW(hModule, path, sizeof(path));
+    if (!filesystem::exists(dllPath))
+    {
+        auto hModule   = GetModuleHandleW(NULL);
+        auto hResource = FindResourceW(hModule, MAKEINTRESOURCEW(IDF_DLL), L"FILE");
+        auto hMemory   = LoadResource(hModule, hResource);
+        auto dwSize    = SizeofResource(hModule, hResource);
+        auto lpAddress = LockResource(hMemory);
 
-    // DLL ¿Ã∏ß æ≤∞Ì
-    std::wstring pathString(path);
-    pathString = pathString.substr(0, pathString.find_last_of(L'\\') + 1);
-    pathString.append(DLL_NAME);
+        auto hFile = CreateFileW(dllPath.c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (hFile == NULL)
+            ShowMessageBoxAndReturn(IDS_STRING_FAIL)
+        defer(CloseHandle(hFile));
+
+        if (WriteFile(hFile, lpAddress, dwSize, NULL, NULL) == FALSE)
+            ShowMessageBoxAndReturn(IDS_STRING_FAIL)
+    }
 
     auto hKernel32 = GetModuleHandleW(L"kernel32.dll");
     if (hKernel32 == NULL)
@@ -220,27 +259,25 @@ void injectDll(HANDLE hProcess)
     if (lpLoadLibrary == NULL)
         ShowMessageBoxAndReturn(IDS_STRING_FAIL)
 
-    auto pBuffSize = (pathString.size() + 1) * sizeof(TCHAR);
+    auto pBuffSize = (dllPath.size() + 1) * sizeof(TCHAR);
     auto pBuff = VirtualAllocEx(hProcess, NULL, pBuffSize, MEM_COMMIT, PAGE_READWRITE);
-    if (pBuff != NULL)
-    {
-        defer(VirtualFreeEx(hProcess, pBuff, 0, MEM_RELEASE));
+    if (pBuff == NULL)
+        ShowMessageBoxAndReturn(IDS_STRING_FAIL)
+    defer(VirtualFreeEx(hProcess, pBuff, 0, MEM_RELEASE));
 
-        if (WriteProcessMemory(hProcess, pBuff, (LPVOID)pathString.c_str(), pBuffSize, NULL))
-        {
-            auto hThread = CreateRemoteThread(hProcess, NULL, 0, lpLoadLibrary, pBuff, 0, NULL);
-            if (hThread != NULL)
-            {
-                defer(CloseHandle(hThread));
-                WaitForSingleObject(hThread, INFINITE);
+    if (WriteProcessMemory(hProcess, pBuff, (LPVOID)dllPath.c_str(), pBuffSize, NULL) == FALSE)
+        ShowMessageBoxAndReturn(IDS_STRING_FAIL)
 
-                DWORD exitCode;
-                if (GetExitCodeThread(hThread, &exitCode) == FALSE || exitCode == 0)
-                    ShowMessageBoxAndReturn(IDS_STRING_FAIL)
+    auto hThread = CreateRemoteThread(hProcess, NULL, 0, lpLoadLibrary, pBuff, 0, NULL);
+    if (hThread == NULL)
+        ShowMessageBoxAndReturn(IDS_STRING_FAIL)
+    defer(CloseHandle(hThread));
 
-            }
-        }
-    }
+    WaitForSingleObject(hThread, INFINITE);
+
+    DWORD exitCode;
+    if (GetExitCodeThread(hThread, &exitCode) == FALSE || exitCode == 0)
+        ShowMessageBoxAndReturn(IDS_STRING_FAIL)
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
