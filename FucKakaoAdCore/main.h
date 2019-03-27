@@ -18,9 +18,6 @@ void hookAd();
 void hookMain();
 void hookLock();
 
-void unhookMain();
-void unhookLock();
-
 BOOL CALLBACK FindAnyKakaoWindow(HWND hwnd, LPARAM lParam);
 BOOL CALLBACK FindKakaoHwndProc(HWND hwnd, LPARAM lParam);
 BOOL CALLBACK FindKakaoAd(HWND hwnd, LPARAM lParam);

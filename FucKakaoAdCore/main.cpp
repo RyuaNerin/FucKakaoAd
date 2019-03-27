@@ -153,23 +153,6 @@ void hookLock()
     }
 }
 
-void unhookMain()
-{
-    if (GetWindowLongW(g_hwndMain, GWL_WNDPROC) == (LONG)WndProcMain)
-    {
-        DebugLog(L"unhookMain");
-        SetWindowLongW(g_hwndMain, GWL_WNDPROC, (LONG)g_prevWpMain);
-    }
-}
-void unhookLock()
-{
-    if (GetWindowLongW(g_hwndLock, GWL_WNDPROC) == (LONG)WndProcLock)
-    {
-        DebugLog(L"unhookLock");
-        SetWindowLongW(g_hwndLock, GWL_WNDPROC, (LONG)g_prevWpLock);
-    }
-}
-
 BOOL CALLBACK FindAnyKakaoWindow(HWND hwnd, LPARAM lParam)
 {
     DWORD pid;
