@@ -234,7 +234,6 @@ void injectDll(HANDLE hProcess)
         ShowMessageBoxAndReturn(IDS_STRING_FAIL)
     std::wstring dllPath = filesystem::path(tempPathBuffer).append(DLL_NAME).wstring();
 
-    if (!filesystem::exists(dllPath))
     {
         auto hModule   = GetModuleHandleW(NULL);
         auto hResource = FindResourceW(hModule, MAKEINTRESOURCEW(IDF_DLL), L"FILE");
@@ -243,13 +242,16 @@ void injectDll(HANDLE hProcess)
         auto lpAddress = LockResource(hMemory);
 
         auto hFile = CreateFileW(dllPath.c_str(), GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
-        if (hFile == NULL)
-            ShowMessageBoxAndReturn(IDS_STRING_FAIL)
-        defer(CloseHandle(hFile));
-
-        if (WriteFile(hFile, lpAddress, dwSize, NULL, NULL) == FALSE)
-            ShowMessageBoxAndReturn(IDS_STRING_FAIL)
+        if (hFile != NULL)
+        {
+            defer(CloseHandle(hFile));
+            
+            WriteFile(hFile, lpAddress, dwSize, NULL, NULL);
+        }
     }
+
+    if (!filesystem::exists(dllPath))
+        ShowMessageBoxAndReturn(IDS_STRING_FAIL)
 
     auto hKernel32 = GetModuleHandleW(L"kernel32.dll");
     if (hKernel32 == NULL)
