@@ -34,39 +34,47 @@ void ShowMessageBox(UINT strId)
 
 BOOL CALLBACK FindKaKaoWindowProc(HWND hwnd, LPARAM lParam)
 {
+    if (!IsWindowVisible(hwnd))
+        return TRUE;
+
+    WINDOWPLACEMENT wndPlacement;
+    if (GetWindowPlacement(hwnd, &wndPlacement) == FALSE)
+        return TRUE;
+
+    if (wndPlacement.showCmd == SW_HIDE)
+        return TRUE;
+
     WCHAR className[MAX_PATH];
+    if (GetClassNameW(hwnd, className, MAX_PATH) == 0)
+        return TRUE;
 
-    GetClassNameW(hwnd, className, MAX_PATH);
-    if (std::wcscmp(className, L"EVA_Window_Dblclk") == 0 ||
-        std::wcscmp(className, L"EVA_Window") == 0)
-    {
-        DWORD pid;
-        if (GetWindowThreadProcessId(hwnd, &pid) != 0)
-        {
-            HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
-            if (hProcess != NULL)
-            {
-                defer(CloseHandle(hProcess));
+    if (std::wcscmp(className, L"EVA_Window_Dblclk") != 0 &&
+        std::wcscmp(className, L"EVA_Window"       ) != 0)
+        return TRUE;
 
-                HMODULE hModule;
-                DWORD needed;
-                if (K32EnumProcessModules(hProcess, &hModule, sizeof(hModule), &needed) == TRUE)
-                {
-                    WCHAR szProcessName[MAX_PATH];
-                    if (K32GetModuleBaseNameW(hProcess, hModule, szProcessName, MAX_PATH) != 0)
-                    {
-                        if (lstrcmpiW(szProcessName, KAKAO_EXE) == 0)
-                        {
-                            *(HWND*)lParam = hwnd;
-                            return FALSE;
-                        }
-                    }
-                }
-            }
-        }
-    }
+    DWORD pid;
+    if (GetWindowThreadProcessId(hwnd, &pid) == 0)
+        return TRUE;
 
-    return TRUE;
+    HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
+    if (hProcess == NULL)
+        return TRUE;
+    defer(CloseHandle(hProcess));
+
+    HMODULE hModule;
+    DWORD needed;
+    if (K32EnumProcessModules(hProcess, &hModule, sizeof(hModule), &needed) == FALSE)
+        return TRUE;
+
+    WCHAR szProcessName[MAX_PATH];
+    if (K32GetModuleBaseNameW(hProcess, hModule, szProcessName, MAX_PATH) == 0)
+        return TRUE;
+
+    if (lstrcmpiW(szProcessName, KAKAO_EXE) != 0)
+        return TRUE;
+
+    *(HWND*)lParam = hwnd;
+    return FALSE;
 }
 HWND FindKakaoWindow()
 {
