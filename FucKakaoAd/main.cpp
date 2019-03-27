@@ -89,16 +89,18 @@ void wWinMainBody()
     if (hwndApp == NULL)
     {
         // 카카오톡을 찾고
-        HKEY hkey;
-        if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\KakaoTalk", 0, KEY_READ, &hkey) != ERROR_SUCCESS)
-            ShowMessageBoxAndReturn(IDS_STRING_ERROR_NOT_FOUND);
-        defer(RegCloseKey(hkey));
-
         WCHAR kakaoPathBuffer[MAX_PATH];
-        DWORD dwType;
-        DWORD dwBytes = MAX_PATH;
-        if (RegQueryValueExW(hkey, L"DisplayIcon", 0, &dwType, (LPBYTE)kakaoPathBuffer, &dwBytes) != ERROR_SUCCESS)
-            ShowMessageBoxAndReturn(IDS_STRING_ERROR_NOT_FOUND)
+        {
+            HKEY hkey;
+            if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\KakaoTalk", 0, KEY_READ, &hkey) != ERROR_SUCCESS)
+                ShowMessageBoxAndReturn(IDS_STRING_ERROR_NOT_FOUND);
+            defer(RegCloseKey(hkey));
+
+            DWORD dwType;
+            DWORD dwBytes = MAX_PATH;
+            if (RegQueryValueExW(hkey, L"DisplayIcon", 0, &dwType, (LPBYTE)kakaoPathBuffer, &dwBytes) != ERROR_SUCCESS)
+                ShowMessageBoxAndReturn(IDS_STRING_ERROR_NOT_FOUND)
+        }
 
         std::wstring kakaoPath = filesystem::path(kakaoPathBuffer).replace_filename(KAKAO_EXE).wstring();
 
