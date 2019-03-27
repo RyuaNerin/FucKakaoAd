@@ -18,6 +18,29 @@ WNDPROC g_prevWpAd   = NULL;
 WNDPROC g_prevWpMain = NULL;
 WNDPROC g_prevWpLock = NULL;
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool setHeight(HWND hwnd);
+bool wndProcMainLock(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
+LRESULT CALLBACK WndProcApp(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK WndProcAd(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK WndProcMain(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK WndProcLock(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
+void hookApp();
+void hookAd();
+void hookMain();
+void hookLock();
+
+BOOL CALLBACK FindAnyKakaoWindow(HWND hwnd, LPARAM lParam);
+BOOL CALLBACK FindKakaoHwndProc(HWND hwnd, LPARAM lParam);
+BOOL CALLBACK FindKakaoAd(HWND hwnd, LPARAM lParam);
+
+void hideKakaoAd();
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool setHeight(HWND hwnd)
 {
     // 계산된 높이랑 다를 경우 다시 설정
