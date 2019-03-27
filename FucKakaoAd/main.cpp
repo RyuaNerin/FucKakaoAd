@@ -242,7 +242,7 @@ void injectDll(HANDLE hProcess)
         auto dwSize    = SizeofResource(hModule, hResource);
         auto lpAddress = LockResource(hMemory);
 
-        auto hFile = CreateFileW(dllPath.c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        auto hFile = CreateFileW(dllPath.c_str(), GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
         if (hFile == NULL)
             ShowMessageBoxAndReturn(IDS_STRING_FAIL)
         defer(CloseHandle(hFile));
