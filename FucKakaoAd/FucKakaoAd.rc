@@ -89,7 +89,7 @@ END
 // FILE
 //
 
-IDF_DLL                 FILE                    "..\\Debug\\FucKakaoAdCore.dll"
+IDF_DLL                 FILE                    "..\\bin\\FucKakaoAdCore.dll"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -99,7 +99,7 @@ IDF_DLL                 FILE                    "..\\Debug\\FucKakaoAdCore.dll"
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_ICON1               ICON                    "icon.ico"
+IDI_ICON1               ICON                    "..\\icon.ico"
 
 
 /////////////////////////////////////////////////////////////////////////////

@@ -1,12 +1,12 @@
+#include "main.h"
+
 #include <Windows.h>
 
 #include <string>
 
-#include "main.h"
+#include "dllmain.h"
 #include "debug.h"
-
-DWORD g_pid = NULL;
-HINSTANCE g_hInst = NULL;
+#include "resource.h"
 
 HWND g_hwndApp  = NULL;
 HWND g_hwndAd   = NULL;
@@ -39,6 +39,8 @@ BOOL CALLBACK FindKakaoAd(HWND hwnd, LPARAM lParam);
 
 void hideKakaoAd();
 
+void attachToView();
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool setHeight(HWND hwnd)
@@ -54,9 +56,6 @@ bool setHeight(HWND hwnd)
 
         if (heightNoAd != heightCur)
         {
-            DebugLog(L"App  (%d , %d) - (%d , %d)", rectApp .left, rectApp .top, rectApp .right, rectApp .bottom);
-            DebugLog(L"View (%d , %d) - (%d , %d)", rectView.left, rectView.top, rectView.right, rectView.top + heightNoAd);
-
             SetWindowPos(
                 hwnd,
                 NULL,
@@ -74,15 +73,16 @@ bool setHeight(HWND hwnd)
 }
 bool wndProcMainLock(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    if (uMsg == WM_SIZE)
+    switch (uMsg)
     {
-        // 크기조절
+    case WM_SIZE:
         if (wParam == SIZE_RESTORED)
             if (setHeight(hwnd))
                 return true;
-    }
-    else if (uMsg == WM_ENABLE || uMsg == WM_SHOWWINDOW)
-    {
+        break;
+
+    case WM_ENABLE:
+    case WM_SHOWWINDOW:
         DebugLog(L"hwnd = %p / wParam = %d", hwnd, wParam);
 
         // 창이 활성화 될 때 광고 다시 숨기기
@@ -92,6 +92,7 @@ bool wndProcMainLock(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         // Lock 페이지가 숨겨질 때 = Main 보이기 = Main Proc 새로 설정
         else if (wParam == FALSE && hwnd == g_hwndLock)
             hookMain();
+        break;
     }
 
     return false;
@@ -99,12 +100,20 @@ bool wndProcMainLock(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 LRESULT CALLBACK WndProcApp(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    // 최소크기
-    if (uMsg == WM_GETMINMAXINFO)
+    switch (uMsg)
     {
+    case WM_GETMINMAXINFO:
+    {
+        // 최소크기
         LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
         lpMMI->ptMinTrackSize.x = 200;
         return 0;
+    }
+
+    case WM_ENABLE:
+        if (wParam == TRUE)
+            attachToView();
+        break;
     }
 
     return CallWindowProcW(g_prevWpApp, hwnd, uMsg, wParam, lParam);
@@ -243,26 +252,52 @@ void hideKakaoAd()
 
     ShowWindow(g_hwndAd, SW_HIDE);
 }
-bool Attach()
+
+bool attached = false;
+void attachToView()
+{
+    if (attached)
+        return;
+
+    WINDOWPLACEMENT wndPlacement;
+    if (GetWindowPlacement(g_hwndApp, &wndPlacement) == FALSE)
+        return;
+
+    if (wndPlacement.showCmd == SW_HIDE)
+        return;
+
+    EnumChildWindows(g_hwndApp, FindKakaoHwndProc, NULL);
+    DebugLog(L"g_hwndApp  = %p", g_hwndApp);
+    DebugLog(L"g_hwndAd   = %p", g_hwndAd);
+    DebugLog(L"g_hwndLock = %p", g_hwndLock);
+    DebugLog(L"g_hwndMain = %p", g_hwndMain);
+
+    hookAd();
+    hookMain();
+    hookLock();
+
+    hideKakaoAd();
+
+    attached = true;
+}
+
+DWORD CALLBACK AttachMainWindowThread(PVOID param)
 {
     EnumWindows(FindAnyKakaoWindow, NULL);
     DebugLog(L"g_hwndApp : %p", g_hwndApp);
 
     if (g_hwndApp != NULL)
     {
-        EnumChildWindows(g_hwndApp, FindKakaoHwndProc, NULL);
-        DebugLog(L"g_hwndApp  = %p", g_hwndApp );
-        DebugLog(L"g_hwndAd   = %p", g_hwndAd  );
-        DebugLog(L"g_hwndLock = %p", g_hwndLock);
-        DebugLog(L"g_hwndMain = %p", g_hwndMain);
-
         hookApp();
-        hookAd();
-        hookMain();
-        hookLock();
-
-        hideKakaoAd();
+        attachToView();
     }
 
     return 0;
+}
+
+void AttachMainWindow()
+{
+    auto hThread = CreateThread(NULL, 0, AttachMainWindowThread, NULL, 0, NULL);
+    if (hThread != NULL)
+        CloseHandle(hThread);
 }

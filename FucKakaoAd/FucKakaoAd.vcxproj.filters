@@ -38,7 +38,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="icon.ico">
+    <Image Include="..\icon.ico">
       <Filter>리소스 파일</Filter>
     </Image>
   </ItemGroup>
