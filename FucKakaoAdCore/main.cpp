@@ -15,6 +15,7 @@
 std::shared_mutex   g_hookedCacheSync;
 std::set<HWND>      g_hookedCache;
 HWND                g_hwndLock = NULL; // 매번 다시 후킹해줘야함
+HWINEVENTHOOK       g_eventHook = NULL;
 
 void hookWindow(HWND hwnd)
 {
@@ -83,6 +84,9 @@ void unhookWindow(HWND hwnd)
     g_hookedCacheSync.lock();
     defer(g_hookedCacheSync.unlock());
 
+    if (hwnd == g_kakaoMain)
+        UnhookWinEvent(g_eventHook);
+
     if (g_hookedCache.find(hwnd) == g_hookedCache.end())
         return;
 
@@ -149,23 +153,26 @@ DWORD CALLBACK AttachThread(PVOID param)
     }
 
     // 앞으로 새로운 창에 후킹
-    auto hHook = SetWinEventHook(EVENT_OBJECT_CREATE, EVENT_OBJECT_SHOW, NULL, ChatWindowHookProc, g_pid, 0, WINEVENT_OUTOFCONTEXT);
-    DebugLog(L"SetWinEventHook : %p", hHook);
-    if (hHook == NULL)
+    g_eventHook = SetWinEventHook(EVENT_OBJECT_CREATE, EVENT_OBJECT_SHOW, NULL, ChatWindowHookProc, g_pid, 0, WINEVENT_OUTOFCONTEXT);
+    DebugLog(L"SetWinEventHook : %p", g_eventHook);
+    if (g_eventHook == NULL)
         return 0;
 
     MSG msg;
-    while (GetMessageW(&msg, NULL, 0, 0) == TRUE)
+    BOOL r;
+    while ((r = GetMessageW(&msg, NULL, 0, 0)) != FALSE)
     {
-        if (msg.message > 0)
+        if (r == -1)
+            break;
+        else
         {
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }
     }
 
-    DebugLog(L"UnhookWinEvent : %p", hHook);
-    UnhookWinEvent(hHook);
+    DebugLog(L"UnhookWinEvent : %p", g_eventHook);
+    UnhookWinEvent(g_eventHook);
 
     return 0;
 }
