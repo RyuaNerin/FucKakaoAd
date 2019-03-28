@@ -15,6 +15,7 @@
 std::shared_mutex   g_hookedCacheSync;
 std::set<HWND>      g_hookedCache;
 HWND                g_hwndLock = NULL; // 매번 다시 후킹해줘야함
+HWND                g_hwndMain = NULL; // 매번 다시 후킹해줘야함
 HWND                g_hwndAd   = NULL; // 잡힐 때마다 다시 숨기기
 HWINEVENTHOOK       g_eventHook = NULL;
 
@@ -29,7 +30,7 @@ void hookWindow(HWND hwnd)
         return;
     }
 
-    if (g_hookedCache.find(hwnd) != g_hookedCache.end() && (g_hwndLock == NULL || hwnd != g_hwndLock))
+    if (g_hookedCache.find(hwnd) != g_hookedCache.end() && (g_hwndLock == NULL || hwnd != g_hwndLock) && (g_hwndMain == NULL || hwnd != g_hwndMain))
         return;
 
     g_hookedCache.insert(hwnd);
@@ -47,9 +48,13 @@ void hookWindow(HWND hwnd)
 
     if (std::wcscmp(className, L"EVA_Window_Dblclk") == 0 && GetParent(hwnd) == NULL)
     {
-        // App
-        DebugLog("------> App");
-        hookCustomWndProc(hwnd, &wndProcApp);
+        auto style = GetWindowLongW(hwnd, GWL_EXSTYLE);
+        if ((style & WS_EX_APPWINDOW) == WS_EX_APPWINDOW)
+        {
+            // App
+            DebugLog("------> App");
+            hookCustomWndProc(hwnd, &wndProcApp);
+        }
     }
     else if (std::wcscmp(className, L"EVA_ChildWindow") == 0)
     {
@@ -59,6 +64,7 @@ void hookWindow(HWND hwnd)
             DebugLog("------> Main");
             adblock(hwnd);
             hookCustomWndProc(hwnd, &wndProcMainLock);
+            g_hwndMain = hwnd;
         }
         else if (std::wcsncmp(windowName, L"LockModeView_", 13) == 0)
         {
