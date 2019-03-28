@@ -2,10 +2,10 @@
 
 #include "main.h"
 #include "debug.h"
-#include "chat.h"
 
-DWORD g_pid = NULL;
-HINSTANCE g_hInst = NULL;
+DWORD     g_pid       = NULL;
+HINSTANCE g_hInst     = NULL;
+HWND      g_kakaoMain = NULL;
 
 BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
@@ -16,10 +16,9 @@ BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
         DebugLog(L"DLL_PROCESS_ATTACH");
 
         g_hInst = hinstDLL;
-        g_pid = GetCurrentProcessId();
+        g_pid   = GetCurrentProcessId();
 
-        AttachMainWindow();
-        AttachChatHook();
+        Attach();
     }
 
     return TRUE;

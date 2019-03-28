@@ -3,189 +3,115 @@
 #include <Windows.h>
 
 #include <string>
+#include <shared_mutex>
+#include <set>
 
-#include "dllmain.h"
+#include "defer.h"
 #include "debug.h"
-#include "resource.h"
+#include "dllmain.h"
+#include "hook.h"
+#include "adblock.h"
 
-HWND g_hwndApp  = NULL;
-HWND g_hwndAd   = NULL;
-HWND g_hwndMain = NULL;
-HWND g_hwndLock = NULL;
+std::shared_mutex   g_hookedCacheSync;
+std::set<HWND>      g_hookedCache;
+HWND                g_hwndLock = NULL; // 매번 다시 후킹해줘야함
 
-WNDPROC g_prevWpApp  = NULL;
-WNDPROC g_prevWpAd   = NULL;
-WNDPROC g_prevWpMain = NULL;
-WNDPROC g_prevWpLock = NULL;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool setHeight(HWND hwnd);
-bool wndProcMainLock(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-
-LRESULT CALLBACK WndProcApp(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-LRESULT CALLBACK WndProcAd(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-LRESULT CALLBACK WndProcMain(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-LRESULT CALLBACK WndProcLock(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-
-void hookApp();
-void hookAd();
-void hookMain();
-void hookLock();
-
-BOOL CALLBACK FindAnyKakaoWindow(HWND hwnd, LPARAM lParam);
-BOOL CALLBACK FindKakaoHwndProc(HWND hwnd, LPARAM lParam);
-BOOL CALLBACK FindKakaoAd(HWND hwnd, LPARAM lParam);
-
-void hideKakaoAd();
-
-void attachToView();
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool setHeight(HWND hwnd)
+void hookWindow(HWND hwnd)
 {
-    // 계산된 높이랑 다를 경우 다시 설정
-    RECT rectApp;
-    RECT rectView;
-    if (GetWindowRect(g_hwndApp, &rectApp) == TRUE &&
-        GetWindowRect(hwnd, &rectView) == TRUE)
+    g_hookedCacheSync.lock();
+    defer(g_hookedCacheSync.unlock());
+
+    if (g_hookedCache.find(hwnd) != g_hookedCache.end() && (g_hwndLock == NULL || hwnd != g_hwndLock))
+        return;
+
+    g_hookedCache.insert(hwnd);
+
+    if (IsWindow(hwnd) == FALSE)
+        return;
+
+    WCHAR className [MAX_PATH];
+    WCHAR windowName[MAX_PATH];
+
+    GetClassNameW (hwnd, className , MAX_PATH);
+    GetWindowTextW(hwnd, windowName, MAX_PATH);
+
+    DebugLog(L"hookWindow [%p] (%ws, %ws)", hwnd, className, windowName);
+
+    if (std::wcscmp(className, L"EVA_Window_Dblclk") == 0 && GetParent(hwnd) == NULL)
     {
-        int heightCur  = rectView.bottom - rectView.top;
-        int heightNoAd = (rectApp.bottom - rectApp.top) - (rectView.top - rectApp.top) - (rectView.left - rectApp.left) * 2;
-
-        if (heightNoAd != heightCur)
+        // App
+        DebugLog("------> App");
+        hookCustomWndProc(hwnd, &wndProcApp);
+    }
+    else if (std::wcscmp(className, L"EVA_ChildWindow") == 0)
+    {
+        if (std::wcsncmp(windowName, L"OnlineMainView_", 15) == 0)
         {
-            SetWindowPos(
-                hwnd,
-                NULL,
-                0,
-                0,
-                rectView.right - rectView.left,
-                heightNoAd,
-                SWP_NOMOVE);
-
-            return true;
+            // Main / Lock
+            DebugLog("------> Main");
+            adblock(hwnd);
+            hookCustomWndProc(hwnd, &wndProcMainLock);
+        }
+        else if (std::wcsncmp(windowName, L"LockModeView_", 13) == 0)
+        {
+            // Lock
+            DebugLog("------> Lock");
+            adblock(hwnd);
+            hookCustomWndProc(hwnd, &wndProcMainLock);
+            g_hwndLock = hwnd;
         }
     }
-
-    return false;
-}
-bool wndProcMainLock(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    switch (uMsg)
+    else if (std::wcscmp(className, L"EVA_Window") == 0 &&
+        std::wcslen(windowName) == 0 &&
+        GetWindow(hwnd, GW_CHILD) == NULL)
     {
-    case WM_SIZE:
-        if (wParam == SIZE_RESTORED)
-            if (setHeight(hwnd))
-                return true;
+        // 광고
+        DebugLog("------> Ad");
+        ShowWindow(hwnd, SW_HIDE);
+        hookCustomWndProc(hwnd, &wndProcAd);
+    }
+    else if (std::wcsncmp(className, L"#32770", 6) == 0)
+    {
+        // 채팅
+        DebugLog("------> Chat");
+        hookCustomWndProc(hwnd, &wndProcChat);
+    }
+}
+
+void unhookWindow(HWND hwnd)
+{
+    g_hookedCacheSync.lock();
+    defer(g_hookedCacheSync.unlock());
+
+    if (g_hookedCache.find(hwnd) == g_hookedCache.end())
+        return;
+
+    DebugLog(L"unhookWind [%p]", hwnd);
+
+    unhookCustomWndProc(hwnd);
+
+    g_hookedCache.erase(hwnd);
+}
+
+VOID CALLBACK ChatWindowHookProc(HWINEVENTHOOK hWinEventHook, DWORD event, HWND hwnd, LONG idObject, LONG idChild, DWORD idEventThread, DWORD dwmsEventTime)
+{
+    if (hwnd == NULL)
+        return;
+
+    switch (event)
+    {
+    case EVENT_OBJECT_CREATE:   // 0x 8000
+    case EVENT_OBJECT_SHOW:     // 0x 8002
+        hookWindow(hwnd);
         break;
 
-    case WM_ENABLE:
-    case WM_SHOWWINDOW:
-        DebugLog(L"hwnd = %p / wParam = %d", hwnd, wParam);
-
-        // 창이 활성화 될 때 광고 다시 숨기기
-        if (wParam == TRUE)
-            hideKakaoAd();
-
-        // Lock 페이지가 숨겨질 때 = Main 보이기 = Main Proc 새로 설정
-        else if (wParam == FALSE && hwnd == g_hwndLock)
-            hookMain();
+    case EVENT_OBJECT_DESTROY:  // 0x 8001
+        unhookWindow(hwnd);
         break;
     }
-
-    return false;
 }
 
-LRESULT CALLBACK WndProcApp(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    switch (uMsg)
-    {
-    case WM_GETMINMAXINFO:
-    {
-        // 최소크기
-        LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
-        lpMMI->ptMinTrackSize.x = 200;
-        return 0;
-    }
-
-    case WM_ENABLE:
-        if (wParam == TRUE)
-            attachToView();
-        break;
-    }
-
-    return CallWindowProcW(g_prevWpApp, hwnd, uMsg, wParam, lParam);
-}
-LRESULT CALLBACK WndProcAd(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    switch (uMsg)
-    {
-    case WM_PAINT:
-    case WM_NCPAINT:
-        // 드로잉 안함
-        return DefWindowProcW(hwnd, uMsg, wParam, lParam);
-    }
-
-    return CallWindowProcW(g_prevWpAd, hwnd, uMsg, wParam, lParam);
-}
-LRESULT CALLBACK WndProcMain(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    if (wndProcMainLock(hwnd, uMsg, wParam, lParam))
-        return 0;
-
-    return CallWindowProcW(g_prevWpMain, hwnd, uMsg, wParam, lParam);
-}
-LRESULT CALLBACK WndProcLock(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    if (wndProcMainLock(hwnd, uMsg, wParam, lParam))
-        return 0;
-
-    return CallWindowProcW(g_prevWpLock, hwnd, uMsg, wParam, lParam);
-}
-
-void hookApp()
-{
-    if (g_hwndApp == NULL) return;
-    if (GetWindowLongW(g_hwndApp, GWL_WNDPROC) != (LONG)WndProcApp)
-    {
-        DebugLog(L"hookApp");
-        g_prevWpApp = (WNDPROC)SetWindowLongW(g_hwndApp, GWL_WNDPROC, (LONG)WndProcApp);
-    }
-}
-void hookAd()
-{
-    if (g_hwndAd == NULL) return;
-    if (GetWindowLongW(g_hwndAd, GWL_WNDPROC) != (LONG)WndProcAd)
-    {
-        DebugLog(L"hookAd");
-        g_prevWpAd = (WNDPROC)SetWindowLongW(g_hwndAd, GWL_WNDPROC, (LONG)WndProcAd);
-        ShowWindow(g_hwndAd, SW_HIDE);
-    }
-}
-void hookMain()
-{
-    if (g_hwndMain == NULL) return;
-    if (GetWindowLongW(g_hwndMain, GWL_WNDPROC) != (LONG)WndProcMain)
-    {
-        DebugLog(L"hookMain");
-        g_prevWpMain = (WNDPROC)SetWindowLongW(g_hwndMain, GWL_WNDPROC, (LONG)WndProcMain);
-        setHeight(g_hwndMain);
-    }
-}
-void hookLock()
-{
-    if (g_hwndLock == NULL) return;
-    if (GetWindowLongW(g_hwndLock, GWL_WNDPROC) != (LONG)WndProcLock)
-    {
-        DebugLog(L"hookLock");
-        g_prevWpLock = (WNDPROC)SetWindowLongW(g_hwndLock, GWL_WNDPROC, (LONG)WndProcLock);
-        setHeight(g_hwndLock);
-    }
-}
-
-BOOL CALLBACK FindAnyKakaoWindow(HWND hwnd, LPARAM lParam)
+BOOL CALLBACK findKakaoTalk(HWND hwnd, LPARAM lParam)
 {
     DWORD pid;
     if (GetWindowThreadProcessId(hwnd, &pid) != 0 && pid == g_pid)
@@ -195,109 +121,58 @@ BOOL CALLBACK FindAnyKakaoWindow(HWND hwnd, LPARAM lParam)
 
         if (std::wcscmp(className, L"EVA_Window_Dblclk") == 0)
         {
-            g_hwndApp = hwnd;
+            g_kakaoMain = hwnd;
             return FALSE;
         }
     }
 
     return TRUE;
 }
-BOOL CALLBACK FindKakaoHwndProc(HWND hwnd, LPARAM lParam)
+BOOL CALLBACK findKakaoWindows(HWND hwnd, LPARAM lParam)
 {
-    WCHAR windowName[MAX_PATH];
-    WCHAR className[MAX_PATH];
-
-    GetWindowTextW(hwnd, windowName, MAX_PATH);
-    GetClassNameW(hwnd, className, MAX_PATH);
-
-    if (std::wcscmp(className, L"EVA_ChildWindow") == 0)
-    {
-             if (std::wcsncmp(windowName, L"OnlineMainView_", 15) == 0) g_hwndMain = hwnd;
-        else if (std::wcsncmp(windowName, L"LockModeView_"  , 13) == 0) g_hwndLock = hwnd;
-    }
-    else if (std::wcscmp(className, L"EVA_Window") == 0 &&
-        std::wcslen(windowName) == 0 &&
-        GetWindow(hwnd, GW_CHILD) == NULL)
-    {
-        g_hwndAd = hwnd;
-    }
-
-    return TRUE;
-}
-BOOL CALLBACK FindKakaoAd(HWND hwnd, LPARAM lParam)
-{
-    WCHAR windowName[MAX_PATH];
-    WCHAR className[MAX_PATH];
-
-    GetWindowTextW(hwnd, windowName, MAX_PATH);
-    GetClassNameW(hwnd, className, MAX_PATH);
-    if (std::wcscmp(className, L"EVA_Window") == 0 &&
-        std::wcslen(windowName) == 0 &&
-        GetWindow(hwnd, GW_CHILD) == NULL)
-    {
-        g_hwndAd = hwnd;
-        return FALSE;
-    }
+    hookWindow(hwnd);
 
     return TRUE;
 }
 
-void hideKakaoAd()
+DWORD CALLBACK AttachThread(PVOID param)
 {
-    if (g_hwndAd == NULL || IsWindow(g_hwndAd) == FALSE)
+    EnumWindows(findKakaoTalk, NULL);
+    DebugLog(L"kakaoMain : %p", g_kakaoMain);
+
+    if (g_kakaoMain != NULL)
     {
-        EnumChildWindows(g_hwndApp, FindKakaoAd, NULL);
-        hookAd();
+        hookWindow(g_kakaoMain);
+
+        // 기존 창에 후킹
+        EnumChildWindows(g_kakaoMain, findKakaoWindows, NULL);
     }
 
-    ShowWindow(g_hwndAd, SW_HIDE);
-}
+    // 앞으로 새로운 창에 후킹
+    auto hHook = SetWinEventHook(EVENT_OBJECT_CREATE, EVENT_OBJECT_SHOW, NULL, ChatWindowHookProc, g_pid, 0, WINEVENT_OUTOFCONTEXT);
+    DebugLog(L"SetWinEventHook : %p", hHook);
+    if (hHook == NULL)
+        return 0;
 
-bool attached = false;
-void attachToView()
-{
-    if (attached)
-        return;
-
-    WINDOWPLACEMENT wndPlacement;
-    if (GetWindowPlacement(g_hwndApp, &wndPlacement) == FALSE)
-        return;
-
-    if (wndPlacement.showCmd == SW_HIDE)
-        return;
-
-    EnumChildWindows(g_hwndApp, FindKakaoHwndProc, NULL);
-    DebugLog(L"g_hwndApp  = %p", g_hwndApp);
-    DebugLog(L"g_hwndAd   = %p", g_hwndAd);
-    DebugLog(L"g_hwndLock = %p", g_hwndLock);
-    DebugLog(L"g_hwndMain = %p", g_hwndMain);
-
-    hookAd();
-    hookMain();
-    hookLock();
-
-    hideKakaoAd();
-
-    attached = true;
-}
-
-DWORD CALLBACK AttachMainWindowThread(PVOID param)
-{
-    EnumWindows(FindAnyKakaoWindow, NULL);
-    DebugLog(L"g_hwndApp : %p", g_hwndApp);
-
-    if (g_hwndApp != NULL)
+    MSG msg;
+    while (GetMessageW(&msg, NULL, 0, 0) == TRUE)
     {
-        hookApp();
-        attachToView();
+        if (msg.message > 0)
+        {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
     }
+
+    DebugLog(L"UnhookWinEvent : %p", hHook);
+    UnhookWinEvent(hHook);
 
     return 0;
 }
 
-void AttachMainWindow()
+void Attach()
 {
-    auto hThread = CreateThread(NULL, 0, AttachMainWindowThread, NULL, 0, NULL);
+    auto hThread = CreateThread(NULL, 0, AttachThread, NULL, 0, NULL);
     if (hThread != NULL)
         CloseHandle(hThread);
 }

@@ -85,25 +85,23 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="adblock.cpp" />
     <ClCompile Include="debug.cpp" />
     <ClCompile Include="dllmain.cpp" />
-    <ClCompile Include="chat.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="hook.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="FucKakaoAdCore.def" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="adblock.h" />
     <ClInclude Include="debug.h" />
-    <ClInclude Include="chat.h" />
     <ClInclude Include="defer.h" />
     <ClInclude Include="dllmain.h" />
     <ClInclude Include="main.h" />
-    <ClInclude Include="resource.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="FucKakaoAdCore.rc" />
+    <ClInclude Include="hook.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
