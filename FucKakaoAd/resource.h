@@ -1,12 +1,14 @@
 //{{NO_DEPENDENCIES}}
-// Microsoft Visual C++ì—ì„œ ìƒì„±í•œ í¬í•¨ íŒŒì¼ì…ë‹ˆë‹¤.
-// FucKakaoAd.rcì—ì„œ ì‚¬ìš©ë˜ê³  ìˆìŠµë‹ˆë‹¤.
+// Microsoft Visual C++¿¡¼­ »ı¼ºÇÑ Æ÷ÇÔ ÆÄÀÏÀÔ´Ï´Ù.
+// FucKakaoAd.rc¿¡¼­ »ç¿ëµÇ°í ÀÖ½À´Ï´Ù.
 //
 #define IDS_STRING_TITLE                101
 #define IDS_STRING_ERROR_NOT_FOUND      102
 #define IDS_STRING_ERROR_PERMISION      103
 #define IDS_STRING_FAIL                 104
 #define IDF_DLL                         105
+#define IDS_STRING105                   105
+#define IDS_STRING_RELEASED_NEW         105
 #define IDI_ICON1                       107
 
 // Next default values for new objects

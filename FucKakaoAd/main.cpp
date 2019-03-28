@@ -8,10 +8,13 @@ using namespace std::experimental;
 
 #include "defer.h"
 #include "resource.h"
+#include "latest_release.h"
 
 #define KAKAO_EXE   L"KakaoTalk.exe"
 #define MUTEX_NAME  L"FucKakaoAd"
 #define DLL_NAME    L"FucKakaoAdCore.dll"
+
+#define LATEST_RELESASE_URL L"https://github.com/RyuaNerin/FucKakaoAd/releases/latest"
 
 HINSTANCE g_hInstance;
 
@@ -300,6 +303,13 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmd
 {
     if (CreateMutexW(NULL, FALSE, MUTEX_NAME) == NULL || GetLastError() == ERROR_ALIAS_EXISTS)
         return 0;
+
+    if (needToUpdate(hInstance))
+    {
+        ShowMessageBox(IDS_STRING_RELEASED_NEW);
+        ShellExecuteW(NULL, NULL, LATEST_RELESASE_URL, NULL, NULL, SW_SHOWNORMAL);
+        return 0;
+    }
 
     g_hInstance = hInstance;
 

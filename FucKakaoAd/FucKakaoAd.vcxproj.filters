@@ -18,12 +18,18 @@
     <ClCompile Include="main.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="latest_release.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="defer.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="latest_release.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
@@ -36,6 +42,8 @@
     <None Include="..\Debug\FucKakaoAdCore.dll">
       <Filter>리소스 파일</Filter>
     </None>
+    <None Include="packages.config" />
+    <None Include="..\bin\FucKakaoAdCore.dll" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\icon.ico">
