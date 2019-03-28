@@ -15,12 +15,19 @@
 std::shared_mutex   g_hookedCacheSync;
 std::set<HWND>      g_hookedCache;
 HWND                g_hwndLock = NULL; // 매번 다시 후킹해줘야함
+HWND                g_hwndAd   = NULL; // 잡힐 때마다 다시 숨기기
 HWINEVENTHOOK       g_eventHook = NULL;
 
 void hookWindow(HWND hwnd)
 {
     g_hookedCacheSync.lock();
     defer(g_hookedCacheSync.unlock());
+
+    if (g_hwndAd != NULL && hwnd == g_hwndAd)
+    {
+        ShowWindow(hwnd, SW_HIDE);
+        return;
+    }
 
     if (g_hookedCache.find(hwnd) != g_hookedCache.end() && (g_hwndLock == NULL || hwnd != g_hwndLock))
         return;
@@ -68,7 +75,19 @@ void hookWindow(HWND hwnd)
     {
         // 광고
         DebugLog("------> Ad");
+
+        // 숨기고
         ShowWindow(hwnd, SW_HIDE);
+
+
+        // 투명하게
+        auto exStyle = GetWindowLongW(hwnd, GWL_EXSTYLE);
+        if ((GWL_EXSTYLE & WS_EX_LAYERED) != WS_EX_LAYERED)
+        {
+            SetWindowLongW(hwnd, GWL_EXSTYLE, exStyle | WS_EX_LAYERED);
+            SetLayeredWindowAttributes(hwnd, 0, 0, LWA_ALPHA);
+        }
+
         hookCustomWndProc(hwnd, &wndProcAd);
     }
     else if (std::wcsncmp(className, L"#32770", 6) == 0)

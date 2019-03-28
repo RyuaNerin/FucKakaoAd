@@ -13,7 +13,7 @@ bool adblock(HWND hwnd)
         GetWindowRect(hwnd,        &rectView) == TRUE)
     {
         int heightCur  = rectView.bottom - rectView.top;
-        int heightNoAd = (rectApp.bottom - rectApp.top) - (rectView.top - rectApp.top) - (rectView.left - rectApp.left) * 2;
+        int heightNoAd = (rectApp.bottom - rectApp.top) - (rectView.top - rectApp.top) - (rectView.left - rectApp.left);
 
         if (heightNoAd != heightCur)
         {
