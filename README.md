@@ -1,22 +1,22 @@
 # FucKakaoAd
 
+![](before-atfer.png)
+
 - 카카오톡 광고삭제 프로그램
-
-- ~~무슨 디자인을 이딴식으로하지...~~
-
-![](after.png)
-
-## 사용 방법
-
-1. [다운로드](https://github.com/RyuaNerin/FucKakaoAd/releases/latest)
-
-2. FucKakaoAd 실행 (**카카오톡 자동실행**)
 
 ## 기능
 
 - 광고 원천 차단
 
 - 최소 사이즈 제한 해제
+
+## 사용 방법
+
+![](icon128.png)
+
+1. [다운로드](https://github.com/RyuaNerin/FucKakaoAd/releases/latest)
+
+2. FucKakaoAd 실행 (**카카오톡 자동실행**)
 
 ## LICENSE
 
