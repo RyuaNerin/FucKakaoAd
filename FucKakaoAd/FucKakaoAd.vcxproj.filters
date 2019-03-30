@@ -43,7 +43,6 @@
       <Filter>리소스 파일</Filter>
     </None>
     <None Include="packages.config" />
-    <None Include="..\bin\FucKakaoAdCore.dll" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\icon.ico">

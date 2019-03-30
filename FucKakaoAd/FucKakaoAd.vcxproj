@@ -87,7 +87,6 @@
     <ResourceCompile Include="FucKakaoAd.rc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\bin\FucKakaoAdCore.dll" />
     <None Include="..\Debug\FucKakaoAdCore.dll" />
     <None Include="packages.config" />
   </ItemGroup>
