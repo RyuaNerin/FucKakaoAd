@@ -13,7 +13,7 @@
 #include "adblock.h"
 #include "signal_wait.h"
 
-std::shared_mutex   g_hookedCacheSync;
+std::mutex          g_hookedCacheSync;
 std::set<HWND>      g_hookedCache;
 std::set<HWND>      g_mainlock;
 HWND                g_hwndAd   = NULL; // 잡힐 때마다 다시 숨기기
