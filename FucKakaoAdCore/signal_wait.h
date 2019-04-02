@@ -10,7 +10,7 @@ public:
 
     void set();
 
-    bool wait();
+    void wait();
 
 private:
     bool m_flag;

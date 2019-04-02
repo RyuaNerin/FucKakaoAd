@@ -12,13 +12,11 @@ void signal_wait::set()
     this->m_signal.notify_one();
 }
 
-bool signal_wait::wait()
+void signal_wait::wait()
 {
     std::unique_lock<std::mutex> ul(this->m_mutex);
 
     while (!this->m_flag)
         this->m_signal.wait(ul);
     this->m_flag = false;
-
-    return true;
 }
