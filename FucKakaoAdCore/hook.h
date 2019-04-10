@@ -2,10 +2,8 @@
 
 #include <Windows.h>
 
-void hookCustomWndProc(HWND hwnd, WNDPROC proc);
-void unhookCustomWndProc(HWND hwnd);
+extern HHOOK g_hookWndProc;
+extern HHOOK g_hookWndProcRet;
 
-LRESULT CALLBACK wndProcChat    (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-LRESULT CALLBACK wndProcApp     (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-LRESULT CALLBACK wndProcAd      (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-LRESULT CALLBACK wndProcMainLock(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK wndProcHook   (int code, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK wndProcHookRet(int code, WPARAM wParam, LPARAM lParam);

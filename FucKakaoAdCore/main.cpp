@@ -13,37 +13,26 @@
 #include "adblock.h"
 #include "signal_wait.h"
 
-std::mutex          g_hookedCacheSync;
-std::set<HWND>      g_hookedCache;
-std::set<HWND>      g_mainlock;
-HWND                g_hwndAd   = NULL; // 잡힐 때마다 다시 숨기기
+std::set<HWND>  g_hwndCache;
+std::mutex      g_hwndCacheMut;
 
 signal_wait         g_exitWait;
 
 void hookWindow(HWND hwnd)
 {
-    g_hookedCacheSync.lock();
-    defer(g_hookedCacheSync.unlock());
+    g_hwndCacheMut.lock();
+    defer(g_hwndCacheMut.unlock());
 
-    if (g_hwndAd != NULL && hwnd == g_hwndAd)
+    if (g_kakaoAd != NULL && hwnd == g_kakaoAd)
     {
         ShowWindow(hwnd, SW_HIDE);
         return;
     }
 
-    auto mainlock = g_mainlock.find(hwnd) != g_mainlock.end();
-
-    if (g_hookedCache.find(hwnd) != g_hookedCache.end() && !mainlock)
+    if (g_hwndCache.find(hwnd) != g_hwndCache.end())
         return;
 
-    if (mainlock)
-    {
-        adblock(hwnd);
-        hookCustomWndProc(hwnd, &wndProcMainLock);
-        return;
-    }
-
-    g_hookedCache.insert(hwnd);
+    g_hwndCache.insert(hwnd);
 
     if (IsWindow(hwnd) == FALSE)
         return;
@@ -63,7 +52,7 @@ void hookWindow(HWND hwnd)
         {
             // App
             DebugLog("------> App");
-            hookCustomWndProc(hwnd, &wndProcApp);
+            g_kakaoTalk = hwnd;
         }
     }
     else if (std::wcscmp(className, L"EVA_ChildWindow") == 0)
@@ -73,16 +62,14 @@ void hookWindow(HWND hwnd)
             // Main / Lock
             DebugLog("------> Main");
             adblock(hwnd);
-            hookCustomWndProc(hwnd, &wndProcMainLock);
-            g_mainlock.insert(hwnd);
+            g_kakaoMain = hwnd;
         }
         else if (std::wcsncmp(windowName, L"LockModeView_", 13) == 0)
         {
             // Lock
             DebugLog("------> Lock");
             adblock(hwnd);
-            hookCustomWndProc(hwnd, &wndProcMainLock);
-            g_mainlock.insert(hwnd);
+            g_kakaoLock = hwnd;
         }
     }
     else if (std::wcscmp(className, L"EVA_Window") == 0 &&
@@ -103,33 +90,34 @@ void hookWindow(HWND hwnd)
             SetLayeredWindowAttributes(hwnd, 0, 0, LWA_ALPHA);
         }
 
-        hookCustomWndProc(hwnd, &wndProcAd);
+        g_kakaoAd = hwnd;
     }
     else if (std::wcsncmp(className, L"#32770", 6) == 0)
     {
         // 채팅
         DebugLog("------> Chat");
-        hookCustomWndProc(hwnd, &wndProcChat);
+        g_kakaoChatMut.lock();
+        g_kakaoChat.insert(hwnd);
+        g_kakaoChatMut.unlock();
     }
 }
 
 void unhookWindow(HWND hwnd)
 {
-    if (hwnd == g_kakaoMain)
-        g_exitWait.set();
+    g_hwndCacheMut.lock();
+    defer(g_hwndCacheMut.unlock());
 
-    g_hookedCacheSync.lock();
-    defer(g_hookedCacheSync.unlock());
-
-    if (g_hookedCache.find(hwnd) == g_hookedCache.end())
+    if (g_hwndCache.find(hwnd) == g_hwndCache.end())
         return;
 
     DebugLog(L"unhookWind [%p]", hwnd);
 
-    unhookCustomWndProc(hwnd);
+    if (hwnd == g_kakaoMain)
+        g_exitWait.set();
 
-    g_hookedCache.erase(hwnd);
-    g_mainlock .erase(hwnd);
+    g_kakaoChatMut.lock();
+    g_kakaoChat.erase(hwnd);
+    g_kakaoChatMut.unlock();
 }
 
 VOID CALLBACK ChatWindowHookProc(HWINEVENTHOOK hWinEventHook, DWORD event, HWND hwnd, LONG idObject, LONG idChild, DWORD idEventThread, DWORD dwmsEventTime)
@@ -181,9 +169,19 @@ DWORD CALLBACK hookThread(PVOID param)
     DebugLog(L"hookThread - SetWinEventHook : %p", hHook);
     if (hHook == NULL)
         return 0;
+    defer(UnhookWinEvent(hHook));
+    
+    // wndProc 후킹
+    g_hookWndProc    = SetWindowsHookExW(WH_CALLWNDPROC   , wndProcHook   , g_hInst, GetWindowThreadProcessId(g_kakaoTalk, NULL));
+    g_hookWndProcRet = SetWindowsHookExW(WH_CALLWNDPROCRET, wndProcHookRet, g_hInst, GetWindowThreadProcessId(g_kakaoTalk, NULL));
+    DebugLog(L"hookThread - SetWindowsHookExW WH_CALLWNDPROC    : %p", g_hookWndProc);
+    DebugLog(L"hookThread - SetWindowsHookExW WH_CALLWNDPROCRET : %p", g_hookWndProcRet);
+    if (g_hookWndProc == NULL || g_hookWndProcRet == NULL)
+        return 0;
+    defer(UnhookWindowsHookEx(g_hookWndProc   ));
+    defer(UnhookWindowsHookEx(g_hookWndProcRet));
 
     DebugLog(L"hookThread - GetMessageW");
-
     MSG msg;
     BOOL r;
     while ((r = GetMessageW(&msg, NULL, 0, 0)) != 0)
@@ -192,8 +190,7 @@ DWORD CALLBACK hookThread(PVOID param)
         DispatchMessageW(&msg);
     }
 
-    DebugLog(L"hookThread - UnhookWinEvent");
-    UnhookWinEvent(hHook);
+    DebugLog(L"hookThread - return");
 
     return 0;
 }
@@ -207,7 +204,7 @@ DWORD CALLBACK AttachThread(PVOID param)
     {
         hookWindow(g_kakaoMain);
 
-        // 기존 창에 후킹
+        // 기존 창 인식
         EnumChildWindows(g_kakaoMain, findKakaoWindows, NULL);
     }
 

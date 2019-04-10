@@ -9,7 +9,7 @@ bool adblock(HWND hwnd)
     // 계산된 높이랑 다를 경우 다시 설정
     RECT rectApp;
     RECT rectView;
-    if (GetWindowRect(g_kakaoMain, &rectApp ) == TRUE &&
+    if (GetWindowRect(g_kakaoTalk, &rectApp ) == TRUE &&
         GetWindowRect(hwnd,        &rectView) == TRUE)
     {
         int heightCur  = rectView.bottom - rectView.top;

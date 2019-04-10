@@ -14,94 +14,95 @@
 #define MAIN_MIN_WIDTH  180
 #define MAIN_MIN_HEIGHT 400
 
-std::map<HWND, WNDPROC> g_wndProc;
+HHOOK g_hookWndProc;
+HHOOK g_hookWndProcRet;
 
-void hookCustomWndProc(HWND hwnd, WNDPROC proc)
+LRESULT CALLBACK wndProcHook(int code, WPARAM wParam, LPARAM lParam)
 {
-    if (GetWindowLongW(hwnd, GWL_WNDPROC) != (LONG)proc)
-    {
-        WNDPROC prevProc = (WNDPROC)SetWindowLongW(hwnd, GWL_WNDPROC, (LONG)proc);
-        DebugLog("hookCustomWndProc : %p (%p -> %p)", hwnd, prevProc, proc);
-        g_wndProc[hwnd] = prevProc;
-    }
-}
-void unhookCustomWndProc(HWND hwnd)
-{
-    auto f = g_wndProc.find(hwnd);
-    if (f != g_wndProc.end())
-    {
-        SetWindowLongW(hwnd, GWL_WNDPROC, (LONG)f->second);
-        g_wndProc.erase(hwnd);
-    }
-}
+    auto cpw = (PCWPSTRUCT)lParam;
 
-LRESULT CALLBACK wndProcChat(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    switch (uMsg)
+    if (cpw->hwnd == g_kakaoMain ||
+        cpw->hwnd == g_kakaoLock)
     {
-    case WM_GETMINMAXINFO:
-    {
-        // 최소크기
-        LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
-        lpMMI->ptMinTrackSize.x = CHAT_MIN_WIDTH;
-        lpMMI->ptMinTrackSize.y = CHAT_MIN_HEIGHT;
-        return 0;
-    }
-    }
-
-    return CallWindowProcW(g_wndProc[hwnd], hwnd, uMsg, wParam, lParam);
-}
-
-LRESULT CALLBACK wndProcApp(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    switch (uMsg)
-    {
-    case WM_GETMINMAXINFO:
-    {
-        // 최소크기
-        LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
-        lpMMI->ptMinTrackSize.x = MAIN_MIN_WIDTH;
-        lpMMI->ptMinTrackSize.y = MAIN_MIN_HEIGHT;
-        return 0;
-    }
-    }
-
-    return CallWindowProcW(g_wndProc[hwnd], hwnd, uMsg, wParam, lParam);
-}
-
-LRESULT CALLBACK wndProcAd(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    switch (uMsg)
-    {
-    case WM_PAINT:
-    case WM_NCPAINT:
-        // 드로잉 안함
-        return DefWindowProcW(hwnd, uMsg, wParam, lParam);
-
-    case WM_SHOWWINDOW:
-        if (wParam == TRUE)
-            ShowWindow(hwnd, SW_HIDE);
-        return 0;
-    }
-
-    return CallWindowProcW(g_wndProc[hwnd], hwnd, uMsg, wParam, lParam);
-}
-
-LRESULT CALLBACK wndProcMainLock(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    switch (uMsg)
-    {
-    case WM_SIZE:
-        if (wParam == SIZE_RESTORED)
+        switch (cpw->message)
         {
-            if (adblock(hwnd))
-                return 0;
+        case WM_SHOWWINDOW:
+            adblock(cpw->hwnd);
+            return 0;
+            break;
         }
-        break;
-    case WM_SHOWWINDOW:
-        adblock(hwnd);
-        break;
+    }
+    else if (cpw->hwnd == g_kakaoAd)
+    {
+        switch (cpw->message)
+        {
+        case WM_PAINT:
+        case WM_NCPAINT:
+            // 드로잉 안함
+            return DefWindowProcW(cpw->hwnd, cpw->message, cpw->wParam, cpw->lParam);
+
+        case WM_SHOWWINDOW:
+            if (wParam == TRUE)
+                ShowWindow(cpw->hwnd, SW_HIDE);
+            return 0;
+        }
     }
 
-    return CallWindowProcW(g_wndProc[hwnd], hwnd, uMsg, wParam, lParam);
+    return CallNextHookEx(g_hookWndProc, code, wParam, lParam);
+}
+LRESULT CALLBACK wndProcHookRet(int code, WPARAM wParam, LPARAM lParam)
+{
+    auto cpw = (PCWPSTRUCT)lParam;
+
+    if (cpw->hwnd == g_kakaoMain ||
+        cpw->hwnd == g_kakaoLock)
+    {
+        switch (cpw->message)
+        {
+        case WM_SIZE:
+            if (wParam == SIZE_RESTORED)
+            {
+                if (adblock(cpw->hwnd))
+                    return 0;
+            }
+            break;
+        }
+    }
+    else if (cpw->hwnd == g_kakaoTalk)
+    {
+        switch (cpw->message)
+        {
+        case WM_GETMINMAXINFO:
+        {
+            // 최소크기
+            auto lpMMI = (LPMINMAXINFO)lParam;
+            lpMMI->ptMinTrackSize.x = MAIN_MIN_WIDTH;
+            lpMMI->ptMinTrackSize.y = MAIN_MIN_HEIGHT;
+            return 0;
+        }
+        }
+    }
+    else
+    {
+        g_kakaoChatMut.lock_shared();
+        bool isChatWindow = g_kakaoChat.find(cpw->hwnd) != g_kakaoChat.end();
+        g_kakaoChatMut.unlock_shared();
+
+        if (isChatWindow)
+        {
+            switch (cpw->message)
+            {
+            case WM_GETMINMAXINFO:
+            {
+                // 최소크기
+                auto lpMMI = (LPMINMAXINFO)lParam;
+                lpMMI->ptMinTrackSize.x = CHAT_MIN_WIDTH;
+                lpMMI->ptMinTrackSize.y = CHAT_MIN_HEIGHT;
+                return 0;
+            }
+            }
+        }
+    }
+
+    return CallNextHookEx(g_hookWndProcRet, code, wParam, lParam);
 }
