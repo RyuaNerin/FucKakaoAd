@@ -29,7 +29,6 @@ LRESULT CALLBACK wndProcHook(int code, WPARAM wParam, LPARAM lParam)
         case WM_SHOWWINDOW:
             adblock(cpw->hwnd);
             return 0;
-            break;
         }
     }
     else if (cpw->hwnd == g_kakaoAd)
@@ -42,7 +41,7 @@ LRESULT CALLBACK wndProcHook(int code, WPARAM wParam, LPARAM lParam)
             return DefWindowProcW(cpw->hwnd, cpw->message, cpw->wParam, cpw->lParam);
 
         case WM_SHOWWINDOW:
-            if (wParam == TRUE)
+            if (cpw->wParam == TRUE)
                 ShowWindow(cpw->hwnd, SW_HIDE);
             return 0;
         }
@@ -53,6 +52,7 @@ LRESULT CALLBACK wndProcHook(int code, WPARAM wParam, LPARAM lParam)
 LRESULT CALLBACK wndProcHookRet(int code, WPARAM wParam, LPARAM lParam)
 {
     auto cpw = (PCWPSTRUCT)lParam;
+    DebugLog(L"Hwnd : %p / msg = %d / lparam = %p / wParam = %p", cpw->hwnd, cpw->message, cpw->lParam, cpw->wParam);
 
     if (cpw->hwnd == g_kakaoMain ||
         cpw->hwnd == g_kakaoLock)
@@ -60,7 +60,7 @@ LRESULT CALLBACK wndProcHookRet(int code, WPARAM wParam, LPARAM lParam)
         switch (cpw->message)
         {
         case WM_SIZE:
-            if (wParam == SIZE_RESTORED)
+            if (cpw->wParam == SIZE_RESTORED)
             {
                 if (adblock(cpw->hwnd))
                     return 0;
@@ -75,7 +75,7 @@ LRESULT CALLBACK wndProcHookRet(int code, WPARAM wParam, LPARAM lParam)
         case WM_GETMINMAXINFO:
         {
             // 최소크기
-            auto lpMMI = (LPMINMAXINFO)lParam;
+            auto lpMMI = (LPMINMAXINFO)cpw->lParam;
             lpMMI->ptMinTrackSize.x = MAIN_MIN_WIDTH;
             lpMMI->ptMinTrackSize.y = MAIN_MIN_HEIGHT;
             return 0;
@@ -95,7 +95,7 @@ LRESULT CALLBACK wndProcHookRet(int code, WPARAM wParam, LPARAM lParam)
             case WM_GETMINMAXINFO:
             {
                 // 최소크기
-                auto lpMMI = (LPMINMAXINFO)lParam;
+                auto lpMMI = (LPMINMAXINFO)cpw->lParam;
                 lpMMI->ptMinTrackSize.x = CHAT_MIN_WIDTH;
                 lpMMI->ptMinTrackSize.y = CHAT_MIN_HEIGHT;
                 return 0;

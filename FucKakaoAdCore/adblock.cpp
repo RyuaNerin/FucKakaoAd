@@ -6,6 +6,7 @@
 
 bool adblock(HWND hwnd)
 {
+
     // 계산된 높이랑 다를 경우 다시 설정
     RECT rectApp;
     RECT rectView;
