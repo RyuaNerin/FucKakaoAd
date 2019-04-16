@@ -27,9 +27,6 @@
     <ClCompile Include="hook.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="adblock.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
     <ClCompile Include="signal_wait.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
@@ -38,6 +35,7 @@
     <None Include="FucKakaoAdCore.def">
       <Filter>리소스 파일</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug.h">
@@ -53,9 +51,6 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="hook.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="adblock.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="signal_wait.h">
