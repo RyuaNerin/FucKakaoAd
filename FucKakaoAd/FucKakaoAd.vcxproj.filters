@@ -39,10 +39,10 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Debug\FucKakaoAdCore.dll">
+    <None Include="packages.config" />
+    <None Include="..\bin\FucKakaoAdCore.dll">
       <Filter>리소스 파일</Filter>
     </None>
-    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\icon.ico">

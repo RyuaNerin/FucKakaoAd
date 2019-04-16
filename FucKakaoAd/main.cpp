@@ -10,9 +10,9 @@ using namespace std::experimental;
 #include "resource.h"
 #include "latest_release.h"
 
-#define KAKAO_EXE   L"KakaoTalk.exe"
-#define MUTEX_NAME  L"FucKakaoAd"
-#define DLL_NAME    L"FucKakaoAdCore.dll"
+#define KAKAO_EXE  L"KakaoTalk.exe"
+#define MUTEX_NAME L"FucKakaoAd"
+#define DLL_NAME   L"FucKakaoAdCore_"
 
 #define LATEST_RELESASE_URL L"https://github.com/RyuaNerin/FucKakaoAd/releases/latest"
 
@@ -160,7 +160,7 @@ bool isInjected(DWORD pid)
     {
         do
         {
-            if (lstrcmpiW(snapEntry.szModule, DLL_NAME) == 0)
+            if (_wcsnicmp(snapEntry.szModule, DLL_NAME, sizeof(DLL_NAME) / sizeof(WCHAR)) == 0)
             {
                 return true;
             }
@@ -245,7 +245,16 @@ void injectDll(HANDLE hProcess)
     WCHAR tempPathBuffer[MAX_PATH];
     if (GetTempPathW(MAX_PATH, tempPathBuffer) == 0)
         ShowMessageBoxAndReturn(IDS_STRING_FAIL)
-    std::wstring dllPath = filesystem::path(tempPathBuffer).append(DLL_NAME).wstring();
+
+    static const wchar_t RS[] = L"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    srand((unsigned int)time(0));
+
+    std::wstring fileName = DLL_NAME;
+    for (int i = 0; i < 5; ++i)
+        fileName.append(1, RS[rand() % (sizeof(RS) / sizeof(wchar_t) - 1)]);
+    fileName.append(L".dll");
+
+    std::wstring dllPath = filesystem::path(tempPathBuffer).append(fileName).wstring();
 
     {
         auto hModule   = GetModuleHandleW(NULL);
