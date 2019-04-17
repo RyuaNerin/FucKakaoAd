@@ -151,10 +151,12 @@ void delWindow(HWND hwnd)
 
     if (hwnd == g_kakaoMain)
         g_exitWait.set();
-
-    g_kakaoChatMut.lock();
-    g_kakaoChat.erase(hwnd);
-    g_kakaoChatMut.unlock();
+    else
+    {
+        g_kakaoChatMut.lock();
+        g_kakaoChat.erase(hwnd);
+        g_kakaoChatMut.unlock();
+    }
 }
 
 VOID CALLBACK ChatWindowHookProc(HWINEVENTHOOK hWinEventHook, DWORD event, HWND hwnd, LONG idObject, LONG idChild, DWORD idEventThread, DWORD dwmsEventTime)
