@@ -14,8 +14,11 @@ HWND g_kakaoTalk = NULL;
 HWND g_kakaoLock = NULL;
 HWND g_kakaoMain = NULL;
 HWND g_kakaoAd = NULL;
+
 std::set<HWND> g_kakaoChat;
 std::shared_mutex g_kakaoChatMut;
+
+int g_kakaoAdHeight = DEFAULT_AD_HEIGHT;
 
 BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {

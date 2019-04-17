@@ -4,7 +4,7 @@
 
 #include <string>
 #include <shared_mutex>
-#include <set>
+#include <map>
 
 #include "defer.h"
 #include "debug.h"
@@ -12,49 +12,31 @@
 #include "hook.h"
 #include "signal_wait.h"
 
-std::set<HWND>  g_hwndCache;
-std::mutex      g_hwndCacheMut;
+enum WindowType
+{
+    WindowType_Talk,
+    WindowType_Main,
+    WindowType_Lock,
+    WindowType_Ad,
+    WindowType_Chat,
+    WindowType_Etc
+};
 
-signal_wait         g_exitWait;
+std::map<HWND, WindowType>  g_hwndCache;
+std::mutex                  g_hwndCacheMut;
+
+signal_wait g_exitWait;
 
 void expandMainLock(HWND hwnd);
 
-void detectWindow(HWND hwnd);
-void newWindow(HWND hwnd)
-{
-    detectWindow(hwnd);
-
-    if (hwnd == g_kakaoMain ||
-        hwnd == g_kakaoLock)
-    {
-        DebugLog(L"newWindow > main/lock");
-        expandMainLock(hwnd);
-    }
-    else if (hwnd == g_kakaoAd)
-    {
-        DebugLog(L"newWindow > ad");
-        // 숨기고
-        ShowWindow(hwnd, SW_HIDE);
-
-        // 투명하게
-        auto exStyle = GetWindowLongW(hwnd, GWL_EXSTYLE);
-        if ((GWL_EXSTYLE & WS_EX_LAYERED) != WS_EX_LAYERED)
-        {
-            SetWindowLongW(hwnd, GWL_EXSTYLE, exStyle | WS_EX_LAYERED);
-            SetLayeredWindowAttributes(hwnd, 0, 0, LWA_ALPHA);
-        }
-    }
-}
-
-void detectWindow(HWND hwnd)
+WindowType detectWindow(HWND hwnd)
 {
     g_hwndCacheMut.lock();
     defer(g_hwndCacheMut.unlock());
 
-    if (g_hwndCache.find(hwnd) != g_hwndCache.end())
-        return;
-
-    g_hwndCache.insert(hwnd);
+    auto found = g_hwndCache.find(hwnd);
+    if (found != g_hwndCache.end())
+        return found->second;
 
     WCHAR className[MAX_PATH];
     WCHAR windowName[MAX_PATH];
@@ -62,16 +44,15 @@ void detectWindow(HWND hwnd)
     GetClassNameW(hwnd, className, MAX_PATH);
     GetWindowTextW(hwnd, windowName, MAX_PATH);
 
-    DebugLog(L"hookWindow [%p] (%ws, %ws)", hwnd, className, windowName);
-
     if (std::wcscmp(className, L"EVA_Window_Dblclk") == 0 && GetParent(hwnd) == NULL)
     {
         auto style = GetWindowLongW(hwnd, GWL_EXSTYLE);
         if ((style & WS_EX_APPWINDOW) == WS_EX_APPWINDOW)
         {
             // App
-            DebugLog("------> App");
             g_kakaoTalk = hwnd;
+            g_hwndCache[hwnd] = WindowType_Talk;
+            return WindowType_Talk;
         }
     }
     else if (std::wcscmp(className, L"EVA_ChildWindow") == 0)
@@ -79,31 +60,82 @@ void detectWindow(HWND hwnd)
         if (std::wcsncmp(windowName, L"OnlineMainView_", 15) == 0)
         {
             // Main / Lock
-            DebugLog("------> Main");
             g_kakaoMain = hwnd;
+            g_hwndCache[hwnd] = WindowType_Main;
+            return WindowType_Main;
         }
         else if (std::wcsncmp(windowName, L"LockModeView_", 13) == 0)
         {
             // Lock
-            DebugLog("------> Lock");
             g_kakaoLock = hwnd;
+            g_hwndCache[hwnd] = WindowType_Lock;
+            return WindowType_Lock;
         }
     }
     else if (std::wcscmp(className, L"EVA_Window") == 0 &&
         std::wcslen(windowName) == 0 &&
-        GetWindow(hwnd, GW_CHILD) == NULL)
+        GetWindow(hwnd, GW_CHILD) == NULL &&
+        GetParent(hwnd) == g_kakaoTalk)
     {
         // 광고
-        DebugLog("------> Ad");
         g_kakaoAd = hwnd;
+        g_hwndCache[hwnd] = WindowType_Ad;
+
+        // 사이즈 측정 후 기록
+        {
+            RECT rect;
+            if (GetWindowRect(hwnd, &rect) == TRUE)
+            {
+                g_kakaoAdHeight = rect.bottom - rect.top + 1;
+                DebugLog(L"g_kakaoAdHeight : %d", g_kakaoAdHeight);
+            }
+        }
+        return WindowType_Ad;
     }
     else if (std::wcsncmp(className, L"#32770", 6) == 0)
     {
         // 채팅
-        DebugLog("------> Chat");
         g_kakaoChatMut.lock();
         g_kakaoChat.insert(hwnd);
         g_kakaoChatMut.unlock();
+
+        g_hwndCache[hwnd] = WindowType_Chat;
+        return WindowType_Chat;
+    }
+
+    g_hwndCache[hwnd] = WindowType_Etc;
+    return WindowType_Etc;
+}
+void newWindow(HWND hwnd)
+{
+    switch (detectWindow(hwnd))
+    {
+    case WindowType_Talk:
+        DebugLog(L"newWindow > app");
+        hookKakaoTalk(hwnd);
+        break;
+
+    case WindowType_Main:
+    case WindowType_Lock:
+        DebugLog(L"newWindow > main/lock");
+        expandMainLock(hwnd);
+        break;
+
+    case WindowType_Ad:
+        DebugLog(L"newWindow > ad");
+        hookKakaoAd(hwnd);
+
+        // 숨기기
+        ShowWindow(hwnd, SW_HIDE);
+        break;
+
+    case WindowType_Chat:
+        DebugLog(L"newWindow > chat");
+        hookKakaoChat(hwnd);
+        break;
+
+    case WindowType_Etc:
+        break;
     }
 }
 
@@ -112,10 +144,10 @@ void delWindow(HWND hwnd)
     g_hwndCacheMut.lock();
     defer(g_hwndCacheMut.unlock());
 
-    if (g_hwndCache.find(hwnd) == g_hwndCache.end())
+    if (g_hwndCache.erase(hwnd) == 0)
         return;
 
-    DebugLog(L"unhookWind [%p]", hwnd);
+    unhookCustomWndProc(hwnd);
 
     if (hwnd == g_kakaoMain)
         g_exitWait.set();
@@ -162,7 +194,7 @@ BOOL CALLBACK findKakaoTalk(HWND hwnd, LPARAM lParam)
 }
 BOOL CALLBACK findKakaoWindows(HWND hwnd, LPARAM lParam)
 {
-    detectWindow(hwnd);
+    newWindow(hwnd);
 
     return TRUE;
 }
@@ -252,11 +284,11 @@ void expandMainLock(HWND hwnd)
                     SetWindowPos(
                         hwnd,
                         0,
-                        rectView.left,
-                        rectView.top,
+                        0,
+                        0,
                         rectView.right - rectView.left,
-                        rectView.bottom - rectView.top + AD_HEIGHT,
-                        SWP_NOZORDER
+                        rectView.bottom - rectView.top + g_kakaoAdHeight,
+                        SWP_NOMOVE | SWP_NOZORDER
                     );
                 }
             }
