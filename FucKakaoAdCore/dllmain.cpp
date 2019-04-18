@@ -10,6 +10,7 @@
 DWORD     g_pid       = NULL;
 HINSTANCE g_hInst     = NULL;
 
+HWND g_kakaoLogin = NULL;
 HWND g_kakaoTalk = NULL;
 HWND g_kakaoLock = NULL;
 HWND g_kakaoMain = NULL;

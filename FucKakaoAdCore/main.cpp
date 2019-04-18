@@ -149,7 +149,7 @@ void delWindow(HWND hwnd)
 
     unhookCustomWndProc(hwnd);
 
-    if (hwnd == g_kakaoMain)
+    if (hwnd == g_kakaoMain || hwnd == g_kakaoLogin)
         g_exitWait.set();
     else
     {
@@ -188,6 +188,23 @@ BOOL CALLBACK findKakaoTalk(HWND hwnd, LPARAM lParam)
         if (std::wcscmp(className, L"EVA_Window_Dblclk") == 0)
         {
             g_kakaoTalk = hwnd;
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+BOOL CALLBACK findKakaoLogin(HWND hwnd, LPARAM lParam)
+{
+    DWORD pid;
+    if (GetWindowThreadProcessId(hwnd, &pid) != 0 && pid == g_pid)
+    {
+        WCHAR className[MAX_PATH];
+        GetClassNameW(hwnd, className, MAX_PATH);
+
+        if (std::wcscmp(className, L"EVA_Window") == 0)
+        {
+            g_kakaoLogin = hwnd;
             return FALSE;
         }
     }
@@ -234,6 +251,8 @@ DWORD CALLBACK AttachThread(PVOID param)
 
     if (g_kakaoTalk != NULL)
     {
+        EnumWindows(findKakaoLogin, NULL);
+
         newWindow(g_kakaoTalk);
 
         // 기존 창 인식
