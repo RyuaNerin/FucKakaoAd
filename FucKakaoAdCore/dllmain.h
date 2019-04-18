@@ -11,9 +11,9 @@ extern DWORD g_pid;
 extern HINSTANCE g_hInst;
 extern HWND g_kakaoLogin;
 extern HWND g_kakaoTalk;
-extern HWND g_kakaoLock;
-extern HWND g_kakaoMain;
-extern HWND g_kakaoAd;
+extern HWND g_kakaoTalkLock;
+extern HWND g_kakaoTalkMain;
+extern HWND g_kakaoTalkAd;
 
 extern int g_kakaoAdHeight;
 

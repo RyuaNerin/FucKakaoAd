@@ -60,14 +60,14 @@ WindowType detectWindow(HWND hwnd)
         if (std::wcsncmp(windowName, L"OnlineMainView_", 15) == 0)
         {
             // Main / Lock
-            g_kakaoMain = hwnd;
+            g_kakaoTalkMain = hwnd;
             g_hwndCache[hwnd] = WindowType_Main;
             return WindowType_Main;
         }
         else if (std::wcsncmp(windowName, L"LockModeView_", 13) == 0)
         {
             // Lock
-            g_kakaoLock = hwnd;
+            g_kakaoTalkLock = hwnd;
             g_hwndCache[hwnd] = WindowType_Lock;
             return WindowType_Lock;
         }
@@ -78,7 +78,7 @@ WindowType detectWindow(HWND hwnd)
         GetParent(hwnd) == g_kakaoTalk)
     {
         // 광고
-        g_kakaoAd = hwnd;
+        g_kakaoTalkAd = hwnd;
         g_hwndCache[hwnd] = WindowType_Ad;
 
         // 사이즈 측정 후 기록
@@ -149,7 +149,7 @@ void delWindow(HWND hwnd)
 
     unhookCustomWndProc(hwnd);
 
-    if (hwnd == g_kakaoMain || hwnd == g_kakaoLogin)
+    if (hwnd == g_kakaoTalkMain || hwnd == g_kakaoLogin)
         g_exitWait.set();
     else
     {
@@ -286,8 +286,8 @@ bool m_expanededMain = false;
 bool m_expanededLock = false;
 void expandMainLock(HWND hwnd)
 {
-    if ((!m_expanededMain && hwnd == g_kakaoMain) ||
-        (!m_expanededLock && hwnd == g_kakaoLock))
+    if ((!m_expanededMain && hwnd == g_kakaoTalkMain) ||
+        (!m_expanededLock && hwnd == g_kakaoTalkLock))
     {
         WINDOWPLACEMENT wp = { sizeof(WINDOWPLACEMENT), };
         if (GetWindowPlacement(hwnd, &wp) == TRUE)
@@ -315,9 +315,9 @@ void expandMainLock(HWND hwnd)
             }
         }
 
-        if (hwnd == g_kakaoMain)
+        if (hwnd == g_kakaoTalkMain)
             m_expanededMain = true;
-        else if (hwnd == g_kakaoLock)
+        else if (hwnd == g_kakaoTalkLock)
             m_expanededLock = true;
     }
 }

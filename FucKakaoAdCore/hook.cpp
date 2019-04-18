@@ -30,7 +30,7 @@ DefNtUserShowWindow       NativeNtUserShowWindow;
 
 BOOL WINAPI NewNtUserSetWindowPos(HWND hWnd, HWND hWndInsertAfter, int x, int y, int cx, int cy, UINT uFlags)
 {
-    if ((hWnd == g_kakaoMain || hWnd == g_kakaoLock) &&
+    if ((hWnd == g_kakaoTalkMain || hWnd == g_kakaoTalkLock) &&
         hWndInsertAfter == 0 &&
         uFlags == SWP_NOZORDER)
     {
@@ -62,7 +62,7 @@ LONG WINAPI NewNtUserSetWindowLong(HWND hWnd, int nIndex, LONG dwNewLong, BOOL a
 
 BOOL WINAPI NewNtUserShowWindow(HWND hWnd, int nCmdShow)
 {
-    if (hWnd == g_kakaoAd && nCmdShow == SW_SHOW)
+    if (hWnd == g_kakaoTalkAd && nCmdShow == SW_SHOW)
         return TRUE;
 
     return NativeNtUserShowWindow(hWnd, nCmdShow);
@@ -138,6 +138,10 @@ LRESULT CALLBACK wndProcAd(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_NCPAINT:
         // 드로잉 안함
         return DefWindowProcW(hwnd, uMsg, wParam, lParam);
+
+    case WM_SHOWWINDOW:
+        ShowWindow(hwnd, SW_HIDE);
+        return 0;
     }
 
     g_wndProcMut.lock_shared();
