@@ -2,7 +2,8 @@
 
 #include <Windows.h>
 
-#include <MinHook.h>
+#include "../minhook/include/MinHook.h"
+#pragma comment(lib, "libMinHook.x86.lib")
 
 #include <map>
 #include <shared_mutex>
@@ -27,6 +28,7 @@ typedef BOOL(WINAPI *DefNtUserShowWindow)(HWND hWnd, int nCmdShow);
 DefNtUserSetWindowPos     NativeNtUserSetWindowPos;
 DefNtUserSetWindowLong    NativeNtUserSetWindowLong;
 DefNtUserShowWindow       NativeNtUserShowWindow;
+
 
 BOOL WINAPI NewNtUserSetWindowPos(HWND hWnd, HWND hWndInsertAfter, int x, int y, int cx, int cy, UINT uFlags)
 {
