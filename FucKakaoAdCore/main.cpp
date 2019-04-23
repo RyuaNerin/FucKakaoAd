@@ -264,9 +264,6 @@ DWORD CALLBACK AttachThread(PVOID param)
     EnumWindows(findKakaoTalk, NULL);
     DebugLog(L"kakaoMain : %p", g_kakaoTalk);
 
-    auto wndProc = GetWindowLongW(g_kakaoTalk, GWL_WNDPROC);
-    DebugLog(L"kakaoMain WndProc : %p", wndProc);
-
     if (g_kakaoTalk != NULL)
     {
         EnumWindows(findKakaoLogin, NULL);
