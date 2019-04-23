@@ -14,10 +14,11 @@
 
 enum WindowType
 {
+    WindowType_Login,
     WindowType_Talk,
-    WindowType_Main,
-    WindowType_Lock,
-    WindowType_Ad,
+    WindowType_TalkMain,
+    WindowType_TalkLock,
+    WindowType_TalkAd,
     WindowType_Chat,
     WindowType_Etc
 };
@@ -61,36 +62,48 @@ WindowType detectWindow(HWND hwnd)
         {
             // Main / Lock
             g_kakaoTalkMain = hwnd;
-            g_hwndCache[hwnd] = WindowType_Main;
-            return WindowType_Main;
+            g_hwndCache[hwnd] = WindowType_TalkMain;
+            return WindowType_TalkMain;
         }
         else if (std::wcsncmp(windowName, L"LockModeView_", 13) == 0)
         {
             // Lock
             g_kakaoTalkLock = hwnd;
-            g_hwndCache[hwnd] = WindowType_Lock;
-            return WindowType_Lock;
+            g_hwndCache[hwnd] = WindowType_TalkLock;
+            return WindowType_TalkLock;
         }
     }
-    else if (std::wcscmp(className, L"EVA_Window") == 0 &&
-        std::wcslen(windowName) == 0 &&
-        GetWindow(hwnd, GW_CHILD) == NULL &&
-        GetParent(hwnd) == g_kakaoTalk)
+    else if (std::wcscmp(className, L"EVA_Window") == 0)
     {
-        // 광고
-        g_kakaoTalkAd = hwnd;
-        g_hwndCache[hwnd] = WindowType_Ad;
-
-        // 사이즈 측정 후 기록
+        if (GetParent(hwnd) == NULL &&
+            std::wcslen(windowName) == 0)
         {
-            RECT rect;
-            if (GetWindowRect(hwnd, &rect) == TRUE)
-            {
-                g_kakaoAdHeight = rect.bottom - rect.top + 1;
-                DebugLog(L"g_kakaoAdHeight : %d", g_kakaoAdHeight);
-            }
+            // 광고
+            g_kakaoLogin = hwnd;
+            g_hwndCache[hwnd] = WindowType_Login;
+
+            return WindowType_Login;
         }
-        return WindowType_Ad;
+        else if (
+            std::wcslen(windowName) == 0 &&
+            GetWindow(hwnd, GW_CHILD) == NULL &&
+            GetParent(hwnd) == g_kakaoTalk)
+        {
+            // 광고
+            g_kakaoTalkAd = hwnd;
+            g_hwndCache[hwnd] = WindowType_TalkAd;
+
+            // 사이즈 측정 후 기록
+            {
+                RECT rect;
+                if (GetWindowRect(hwnd, &rect) == TRUE)
+                {
+                    g_kakaoAdHeight = rect.bottom - rect.top + 1;
+                    DebugLog(L"g_kakaoAdHeight : %d", g_kakaoAdHeight);
+                }
+            }
+            return WindowType_TalkAd;
+        }
     }
     else if (std::wcsncmp(className, L"#32770", 6) == 0)
     {
@@ -113,15 +126,17 @@ void newWindow(HWND hwnd)
     case WindowType_Talk:
         DebugLog(L"newWindow > app");
         hookKakaoTalk(hwnd);
+
+        ShowWindow(g_kakaoTalkAd, SW_HIDE);
         break;
 
-    case WindowType_Main:
-    case WindowType_Lock:
+    case WindowType_TalkMain:
+    case WindowType_TalkLock:
         DebugLog(L"newWindow > main/lock");
-        expandMainLock(hwnd);
+        //expandMainLock(hwnd);
         break;
 
-    case WindowType_Ad:
+    case WindowType_TalkAd:
         DebugLog(L"newWindow > ad");
         hookKakaoAd(hwnd);
 
@@ -150,7 +165,10 @@ void delWindow(HWND hwnd)
     unhookCustomWndProc(hwnd);
 
     if (hwnd == g_kakaoTalkMain || hwnd == g_kakaoLogin)
+    {
+        DebugLog(L"EXIT");
         g_exitWait.set();
+    }
     else
     {
         g_kakaoChatMut.lock();
@@ -257,6 +275,13 @@ DWORD CALLBACK AttachThread(PVOID param)
 
         // 기존 창 인식
         EnumChildWindows(g_kakaoTalk, findKakaoWindows, NULL);
+        
+        // 기존 창 키우기
+        if (g_kakaoTalkAd != NULL)
+        {
+            expandMainLock(g_kakaoTalkLock);
+            expandMainLock(g_kakaoTalkMain);
+        }
     }
 
     initApiHook();
@@ -286,33 +311,26 @@ bool m_expanededMain = false;
 bool m_expanededLock = false;
 void expandMainLock(HWND hwnd)
 {
+    DebugLog(L"expandMainLock");
+
     if ((!m_expanededMain && hwnd == g_kakaoTalkMain) ||
         (!m_expanededLock && hwnd == g_kakaoTalkLock))
     {
-        WINDOWPLACEMENT wp = { sizeof(WINDOWPLACEMENT), };
-        if (GetWindowPlacement(hwnd, &wp) == TRUE)
+        DebugLog(L"GetWindowRect");
+        RECT rectView;
+        if (GetWindowRect(hwnd, &rectView) == TRUE)
         {
-            DebugLog(L"WINDOWPLACEMENT / showCmd = %d", wp.showCmd);
+            DebugLog(L"RECT / x = %d / y = %d / w = %d / h = %d", rectView.left, rectView.top, rectView.right - rectView.left, rectView.bottom - rectView.top);
 
-            if (wp.showCmd == SW_SHOW || wp.showCmd == SW_MAXIMIZE || wp.showCmd == SW_MAX)
-            {
-                RECT rectTalk, rectView;
-                if (GetWindowRect(g_kakaoTalk, &rectTalk) == TRUE &&
-                    GetWindowRect(hwnd, &rectView) == TRUE)
-                {
-                    DebugLog(L"RECT / x = %d / y = %d / w = %d / h = %d", rectView.left, rectView.top, rectView.right - rectView.left, rectView.bottom - rectView.top);
-
-                    SetWindowPos(
-                        hwnd,
-                        0,
-                        0,
-                        0,
-                        rectView.right - rectView.left,
-                        rectView.bottom - rectView.top + g_kakaoAdHeight,
-                        SWP_NOMOVE | SWP_NOZORDER
-                    );
-                }
-            }
+            SetWindowPos(
+                hwnd,
+                0,
+                0,
+                0,
+                rectView.right - rectView.left,
+                rectView.bottom - rectView.top + g_kakaoAdHeight,
+                SWP_NOMOVE | SWP_NOZORDER
+            );
         }
 
         if (hwnd == g_kakaoTalkMain)
