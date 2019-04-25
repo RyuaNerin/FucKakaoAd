@@ -110,11 +110,6 @@ WindowType detectWindow(HWND hwnd)
         auto style = GetWindowLongW(hwnd, GWL_STYLE);
         if ((style & (WS_MINIMIZEBOX | WS_MAXIMIZEBOX)) == (WS_MINIMIZEBOX | WS_MAXIMIZEBOX))
         {
-            // 채팅
-            g_kakaoChatMut.lock();
-            g_kakaoChat.insert(hwnd);
-            g_kakaoChatMut.unlock();
-
             g_hwndCache[hwnd] = WindowType_Chat;
             return WindowType_Chat;
         }
@@ -172,12 +167,6 @@ void delWindow(HWND hwnd)
     {
         DebugLog(L"EXIT");
         g_exitWait.set();
-    }
-    else
-    {
-        g_kakaoChatMut.lock();
-        g_kakaoChat.erase(hwnd);
-        g_kakaoChatMut.unlock();
     }
 }
 
