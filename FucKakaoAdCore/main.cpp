@@ -107,13 +107,17 @@ WindowType detectWindow(HWND hwnd)
     }
     else if (std::wcsncmp(className, L"#32770", 6) == 0)
     {
-        // 채팅
-        g_kakaoChatMut.lock();
-        g_kakaoChat.insert(hwnd);
-        g_kakaoChatMut.unlock();
+        auto style = GetWindowLongW(hwnd, GWL_STYLE);
+        if ((style & (WS_MINIMIZEBOX | WS_MAXIMIZEBOX)) == (WS_MINIMIZEBOX | WS_MAXIMIZEBOX))
+        {
+            // 채팅
+            g_kakaoChatMut.lock();
+            g_kakaoChat.insert(hwnd);
+            g_kakaoChatMut.unlock();
 
-        g_hwndCache[hwnd] = WindowType_Chat;
-        return WindowType_Chat;
+            g_hwndCache[hwnd] = WindowType_Chat;
+            return WindowType_Chat;
+        }
     }
 
     g_hwndCache[hwnd] = WindowType_Etc;
