@@ -102,7 +102,7 @@ void wWinMainBody()
             DWORD dwType;
             DWORD dwBytes = MAX_PATH;
             if (RegQueryValueExW(hkey, L"DisplayIcon", 0, &dwType, (LPBYTE)kakaoPathBuffer, &dwBytes) != ERROR_SUCCESS)
-                ShowMessageBoxAndReturn(IDS_STRING_ERROR_NOT_FOUND)
+                ShowMessageBoxAndReturn(IDS_STRING_ERROR_NOT_FOUND);
         }
 
         std::wstring kakaoPath = filesystem::path(kakaoPathBuffer).replace_filename(KAKAO_EXE).wstring();
@@ -115,7 +115,7 @@ void wWinMainBody()
         if (!RunAsDesktopUser(kakaoPath.c_str(), NULL, NULL, 0, FALSE, 0, NULL, NULL, &si, &pi) || pi.hProcess == NULL)
         {
             if (!CreateProcessW(kakaoPath.c_str(), NULL, NULL, 0, FALSE, 0, NULL, NULL, &si, &pi) || pi.hProcess == NULL)
-                ShowMessageBoxAndReturn(IDS_STRING_FAIL)
+                ShowMessageBoxAndReturn(IDS_STRING_FAIL);
         }
 
         // 프로세스가 종료되거나 메인 폼이
@@ -132,13 +132,13 @@ void wWinMainBody()
         // 프로세스 ID 얻어오고
         DWORD pid;
         if (GetWindowThreadProcessId(hwndApp, &pid) == 0 || pid == 0)
-            ShowMessageBoxAndReturn(IDS_STRING_ERROR_PERMISION)
+            ShowMessageBoxAndReturn(IDS_STRING_ERROR_PERMISION);
 
         if (!isInjected(pid))
         {
             auto hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
             if (hProcess == NULL)
-                ShowMessageBoxAndReturn(IDS_STRING_FAIL)
+                ShowMessageBoxAndReturn(IDS_STRING_FAIL);
             defer(CloseHandle(hProcess));
 
             injectDll(hProcess);
@@ -244,7 +244,7 @@ void injectDll(HANDLE hProcess)
 {
     WCHAR tempPathBuffer[MAX_PATH];
     if (GetTempPathW(MAX_PATH, tempPathBuffer) == 0)
-        ShowMessageBoxAndReturn(IDS_STRING_FAIL)
+        ShowMessageBoxAndReturn(IDS_STRING_FAIL);
 
     static const wchar_t RS[] = L"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     srand((unsigned int)time(0));
@@ -273,15 +273,15 @@ void injectDll(HANDLE hProcess)
     }
 
     if (!filesystem::exists(dllPath))
-        ShowMessageBoxAndReturn(IDS_STRING_FAIL)
+        ShowMessageBoxAndReturn(IDS_STRING_FAIL);
 
     auto hKernel32 = GetModuleHandleW(L"kernel32.dll");
     if (hKernel32 == NULL)
-        ShowMessageBoxAndReturn(IDS_STRING_FAIL)
+        ShowMessageBoxAndReturn(IDS_STRING_FAIL);
 
     auto lpLoadLibrary = (LPTHREAD_START_ROUTINE)GetProcAddress(hKernel32, "LoadLibraryW");
     if (lpLoadLibrary == NULL)
-        ShowMessageBoxAndReturn(IDS_STRING_FAIL)
+        ShowMessageBoxAndReturn(IDS_STRING_FAIL);
 
     auto pBuffSize = (dllPath.size() + 1) * sizeof(TCHAR);
     auto pBuff = VirtualAllocEx(hProcess, NULL, pBuffSize, MEM_COMMIT, PAGE_READWRITE);
@@ -290,18 +290,18 @@ void injectDll(HANDLE hProcess)
     defer(VirtualFreeEx(hProcess, pBuff, 0, MEM_RELEASE));
 
     if (WriteProcessMemory(hProcess, pBuff, (LPVOID)dllPath.c_str(), pBuffSize, NULL) == FALSE)
-        ShowMessageBoxAndReturn(IDS_STRING_FAIL)
+        ShowMessageBoxAndReturn(IDS_STRING_FAIL);
 
     auto hThread = CreateRemoteThread(hProcess, NULL, 0, lpLoadLibrary, pBuff, 0, NULL);
     if (hThread == NULL)
-        ShowMessageBoxAndReturn(IDS_STRING_FAIL)
+        ShowMessageBoxAndReturn(IDS_STRING_FAIL);
     defer(CloseHandle(hThread));
 
     WaitForSingleObject(hThread, INFINITE);
 
     DWORD exitCode;
     if (GetExitCodeThread(hThread, &exitCode) == FALSE || exitCode == 0)
-        ShowMessageBoxAndReturn(IDS_STRING_FAIL)
+        ShowMessageBoxAndReturn(IDS_STRING_FAIL);
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
