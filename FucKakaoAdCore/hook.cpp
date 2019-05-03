@@ -46,14 +46,18 @@ LONG WINAPI NewNtUserSetWindowLong(HWND hWnd, int nIndex, LONG dwNewLong, BOOL a
 {
     if (nIndex == GWL_WNDPROC)
     {
+
         g_wndProcMut.lock();
         defer(g_wndProcMut.unlock());
+
 
         auto found = g_wndProc.find(hWnd);
         if (found != g_wndProc.end())
         {
             auto old = found->second;
             g_wndProc[hWnd] = (WNDPROC)dwNewLong;
+
+            DebugLog(L"[%p] GWL_WNDPROC %p -> %p", hWnd, old, dwNewLong);
 
             return (LONG)old;
         }
@@ -91,19 +95,25 @@ void initApiHook()
         st = MH_EnableHook(ntUserSetWindowPos ); DebugLog(L"MH_EnableHook / NtUserSetWindowPos  : %d", st);
         st = MH_EnableHook(ntUserSetWindowLong); DebugLog(L"MH_EnableHook / NtUserSetWindowLong : %d", st);
         st = MH_EnableHook(ntUSerShowWindow   ); DebugLog(L"MH_EnableHook / NtUSerShowWindow    : %d", st);
-    }
+    } 
 }
 
 void hookCustomWndProc(HWND hwnd, WNDPROC proc)
 {
-    if (GetWindowLongW(hwnd, GWL_WNDPROC) != (LONG)proc)
-    {
-        WNDPROC prevProc = (WNDPROC)SetWindowLongW(hwnd, GWL_WNDPROC, (LONG)proc);
+    DebugLog(L"lock");
+    g_wndProcMut.lock();
+    defer(DebugLog(L"unlock"); g_wndProcMut.unlock());
 
-        g_wndProcMut.lock();
-        g_wndProc[hwnd] = prevProc;
-        g_wndProcMut.unlock();
+    DebugLog(L"find");
+    if (g_wndProc.find(hwnd) != g_wndProc.end())
+    {
+        DebugLog(L"return");
+        return;
     }
+    
+    DebugLog(L"set");
+    g_wndProc[hwnd] = (WNDPROC)SetWindowLongW(hwnd, GWL_WNDPROC, (LONG)proc);
+    DebugLog(L"[%p] WndProcHook %p -> %p", hwnd, g_wndProc[hwnd], proc);
 }
 
 void unhookCustomWndProc(HWND hwnd)
@@ -134,27 +144,28 @@ void hookKakaoChat(HWND hwnd)
 
 LRESULT CALLBACK wndProcAd(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    switch (uMsg)
-    {
-    case WM_PAINT:
-    case WM_NCPAINT:
-        // 드로잉 안함
-        return DefWindowProcW(hwnd, uMsg, wParam, lParam);
-
-    case WM_SHOWWINDOW:
-        ShowWindow(hwnd, SW_HIDE);
-        return 0;
-    }
-
     g_wndProcMut.lock_shared();
     auto wndProc = g_wndProc[hwnd];
     g_wndProcMut.unlock_shared();
 
-    return CallWindowProcW(wndProc, hwnd, uMsg, wParam, lParam);
+    auto res = CallWindowProcW(wndProc, hwnd, uMsg, wParam, lParam);
+
+    switch (uMsg)
+    {
+    case WM_SHOWWINDOW:
+        ShowWindow(hwnd, SW_HIDE);
+    }
+    return res;
 }
 
 LRESULT CALLBACK wndProcTalk(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+    g_wndProcMut.lock_shared();
+    auto wndProc = g_wndProc[hwnd];
+    g_wndProcMut.unlock_shared();
+
+    auto res = CallWindowProcW(wndProc, hwnd, uMsg, wParam, lParam);
+
     switch (uMsg)
     {
     case WM_GETMINMAXINFO:
@@ -163,19 +174,21 @@ LRESULT CALLBACK wndProcTalk(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
         lpMMI->ptMinTrackSize.x = MAIN_MIN_WIDTH;
         lpMMI->ptMinTrackSize.y = MAIN_MIN_HEIGHT;
-        return 0;
+        break;
     }
     }
 
-    g_wndProcMut.lock_shared();
-    auto wndProc = g_wndProc[hwnd];
-    g_wndProcMut.unlock_shared();
-
-    return CallWindowProcW(wndProc, hwnd, uMsg, wParam, lParam);
+    return res;
 }
 
 LRESULT CALLBACK wndProcChat(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+    g_wndProcMut.lock_shared();
+    auto wndProc = g_wndProc[hwnd];
+    g_wndProcMut.unlock_shared();
+
+    auto res = CallWindowProcW(wndProc, hwnd, uMsg, wParam, lParam);
+
     switch (uMsg)
     {
     case WM_GETMINMAXINFO:
@@ -184,13 +197,9 @@ LRESULT CALLBACK wndProcChat(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
         lpMMI->ptMinTrackSize.x = CHAT_MIN_WIDTH;
         lpMMI->ptMinTrackSize.y = CHAT_MIN_HEIGHT;
-        return 0;
+        break;
     }
     }
 
-    g_wndProcMut.lock_shared();
-    auto wndProc = g_wndProc[hwnd];
-    g_wndProcMut.unlock_shared();
-
-    return CallWindowProcW(wndProc, hwnd, uMsg, wParam, lParam);
+    return res;
 }

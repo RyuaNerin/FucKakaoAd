@@ -50,6 +50,9 @@ WindowType detectWindow(HWND hwnd)
         auto style = GetWindowLongW(hwnd, GWL_EXSTYLE);
         if ((style & WS_EX_APPWINDOW) == WS_EX_APPWINDOW)
         {
+            DebugLog(L"newWindow > app");
+            hookKakaoTalk(hwnd);
+
             // App
             g_kakaoTalk = hwnd;
             g_hwndCache[hwnd] = WindowType_Talk;
@@ -60,6 +63,9 @@ WindowType detectWindow(HWND hwnd)
     {
         if (std::wcsncmp(windowName, L"OnlineMainView_", 15) == 0)
         {
+            DebugLog(L"newWindow > main");
+            //expandMainLock(hwnd);
+
             // Main / Lock
             g_kakaoTalkMain = hwnd;
             g_hwndCache[hwnd] = WindowType_TalkMain;
@@ -68,6 +74,9 @@ WindowType detectWindow(HWND hwnd)
         
         if (std::wcsncmp(windowName, L"LockModeView_", 13) == 0)
         {
+            DebugLog(L"newWindow > lock");
+            //expandMainLock(hwnd);
+
             // Lock
             g_kakaoTalkLock = hwnd;
             g_hwndCache[hwnd] = WindowType_TalkLock;
@@ -90,6 +99,9 @@ WindowType detectWindow(HWND hwnd)
             GetParent(hwnd) == g_kakaoTalk &&
             GetWindow(hwnd, GW_CHILD) == NULL)
         {
+            DebugLog(L"newWindow > ad");
+            hookKakaoAd(hwnd);
+
             // 광고
             g_kakaoTalkAd = hwnd;
             g_hwndCache[hwnd] = WindowType_TalkAd;
@@ -109,6 +121,9 @@ WindowType detectWindow(HWND hwnd)
         auto style = GetWindowLongW(hwnd, GWL_STYLE);
         if ((style & (WS_MINIMIZEBOX | WS_MAXIMIZEBOX)) == (WS_MINIMIZEBOX | WS_MAXIMIZEBOX))
         {
+            DebugLog(L"newWindow > chat");
+            hookKakaoChat(hwnd);
+
             g_hwndCache[hwnd] = WindowType_Chat;
             return WindowType_Chat;
         }
@@ -122,32 +137,11 @@ void newWindow(HWND hwnd)
     switch (detectWindow(hwnd))
     {
     case WindowType_Talk:
-        DebugLog(L"newWindow > app");
-        hookKakaoTalk(hwnd);
-
         ShowWindow(g_kakaoTalkAd, SW_HIDE);
         break;
 
-    case WindowType_TalkMain:
-    case WindowType_TalkLock:
-        DebugLog(L"newWindow > main/lock");
-        //expandMainLock(hwnd);
-        break;
-
     case WindowType_TalkAd:
-        DebugLog(L"newWindow > ad");
-        hookKakaoAd(hwnd);
-
-        // 숨기기
         ShowWindow(hwnd, SW_HIDE);
-        break;
-
-    case WindowType_Chat:
-        DebugLog(L"newWindow > chat");
-        hookKakaoChat(hwnd);
-        break;
-
-    case WindowType_Etc:
         break;
     }
 }
